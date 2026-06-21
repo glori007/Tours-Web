@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard | Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="admin-dashboard-body">
+  <header class="admin-topbar">
+    <a class="brand admin-brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+      <span>Walk Prague</span>
+      <strong>Admin</strong>
+    </a>
+    <div class="admin-account">
+      <span class="admin-account-name">Platform Administrator</span>
+      <a class="admin-logout" href="{{ url_for('signin') }}">Logout</a>
+    </div>
+  </header>
+
+  <main class="admin-shell">
+    <nav class="admin-tabs" aria-label="Administrator dashboard sections">
+      <a class="admin-tab is-active" href="#admin-overview">Overview</a>
+      <a class="admin-tab" href="#admin-guides">Guides</a>
+      <a class="admin-tab" href="#admin-tours">Tours</a>
+      <a class="admin-tab" href="#admin-reservations">Reservations</a>
+    </nav>
+
+    <section id="admin-overview" class="admin-page-section">
+      <header class="admin-section-head">
+        <h1>Platform Overview</h1>
+        <p>Last updated: {{ admin.last_updated }}</p>
+      </header>
+
+      <div class="admin-overview-grid">
+        <div class="admin-stat-grid">
+          {% for stat in admin.stats %}
+          <article class="admin-stat-card accent-{{ stat.accent }}">
+            <div>
+              <strong>{{ stat.value }}</strong>
+              <span>{{ stat.label }}</span>
+            </div>
+            <span class="admin-stat-icon" aria-hidden="true">{{ stat.icon }}</span>
+          </article>
+          {% endfor %}
+        </div>
+
+        <section class="admin-card admin-language-card">
+          <header>
+            <h2>Reservations by Language</h2>
+          </header>
+          <div class="admin-language-layout">
+            <div class="admin-language-list">
+              {% for language in admin.languages %}
+              <article class="admin-language-row accent-{{ language.accent }}">
+                <span>{{ language.flag }} {{ language.name }}</span>
+                <div class="admin-progress" aria-hidden="true">
+                  <span></span>
+                </div>
+                <strong>{{ language.count }}</strong>
+              </article>
+              {% endfor %}
+            </div>
+            <aside class="admin-reservation-total">
+              <strong>318</strong>
+              <span>Total Reservations</span>
+              <p>Across 6 languages and 14 active tours</p>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="admin-guides" class="admin-page-section">
+      <article class="admin-card admin-list-card">
+        <header class="admin-card-head">
+          <h2>Registered Guides (11)</h2>
+          <label class="admin-search">
+            <span class="sr-only">Search guides</span>
+            <input type="search" placeholder="Search guides..." data-admin-guide-search>
+          </label>
+        </header>
+
+        <div class="admin-guide-list">
+          {% for guide in admin.guides %}
+          <article class="admin-guide-row" data-admin-guide-row data-search="{{ guide.name }} {{ guide.email }} {{ guide.languages }}">
+            <div class="admin-guide-main">
+              {% if guide.avatar %}
+              <img class="admin-guide-avatar" src="{{ guide.avatar }}" alt="{{ guide.name }}">
+              {% else %}
+              <span class="admin-guide-avatar fallback-{{ guide.color }}">{{ guide.initial }}</span>
+              {% endif %}
+              <div>
+                <h3>{{ guide.name }}</h3>
+                <p>{{ guide.email }}</p>
+                <span>{{ guide.languages }}</span>
+              </div>
+            </div>
+            <div class="admin-guide-actions">
+              <p>{{ guide.tours }} tours · {{ guide.bookings }} bookings</p>
+              <button
+                class="admin-action-button"
+                type="button"
+                data-guide-detail
+                data-guide-name="{{ guide.name }}"
+                data-guide-email="{{ guide.email }}"
+                data-guide-avatar="{{ guide.avatar }}"
+                data-guide-initial="{{ guide.initial }}"
+                data-guide-color="{{ guide.color }}"
+                data-guide-languages="{{ guide.language_names }}"
+                data-guide-tours="{{ guide.tours }}"
+                data-guide-bookings="{{ guide.bookings }}"
+                data-guide-rating="{{ guide.rating }}"
+                data-guide-reviews="{{ guide.reviews }}"
+                data-guide-guests="{{ guide.guests }}"
+                data-guide-specialty="{{ guide.specialty }}"
+              >View Details</button>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </article>
+    </section>
+
+    <section id="admin-tours" class="admin-page-section">
+      <article class="admin-card admin-table-card">
+        <header class="admin-card-head">
+          <h2>All Tours (14)</h2>
+          <label class="admin-select">
+            <span class="sr-only">Filter tours by language</span>
+            <select data-admin-language-filter>
+              <option value="all">All languages</option>
+              <option value="EN">English</option>
+              <option value="DE">German</option>
+              <option value="ES">Spanish</option>
+              <option value="FR">French</option>
+            </select>
+          </label>
+        </header>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Guide</th>
+                <th>Reservations</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tour in admin.tours %}
+              <tr data-admin-tour-row data-language="{{ tour.language }}">
+                <td>{{ tour.title }}</td>
+                <td>{{ tour.guide }}</td>
+                <td><strong>{{ tour.reservations }}</strong></td>
+                <td><a class="admin-action-button compact" href="{{ url_for('tour_detail', slug=tour.slug, mode='admin') }}">View More</a></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="admin-reservations" class="admin-page-section">
+      <article class="admin-card admin-table-card">
+        <header class="admin-card-head">
+          <h2>Reservations (318)</h2>
+          <p>Recent platform booking activity</p>
+        </header>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Participant</th>
+                <th>Tour</th>
+                <th>Guide</th>
+                <th>Date</th>
+                <th>Extra guests</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reservation in admin.reservations %}
+              <tr>
+                <td>{{ reservation.participant }}</td>
+                <td>{{ reservation.tour }}</td>
+                <td>{{ reservation.guide }}</td>
+                <td>{{ reservation.date }}</td>
+                <td>{{ reservation.people }}</td>
+                <td><span class="admin-status {{ reservation.status|lower }}">{{ reservation.status }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div class="admin-guide-modal" data-guide-modal aria-hidden="true">
+    <div class="admin-guide-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-guide-modal-title">
+      <button class="admin-modal-close" type="button" data-guide-modal-close aria-label="Close guide details">×</button>
+      <p class="section-kicker">Guide Profile</p>
+      <div class="admin-guide-profile">
+        <div class="admin-guide-modal-avatar" data-guide-modal-avatar></div>
+        <section>
+          <h2 id="admin-guide-modal-title" data-guide-modal-name>Guide name</h2>
+          <p class="admin-guide-modal-email" data-guide-modal-email>guide@email.cz</p>
+          <p class="admin-guide-modal-subtitle">Local guide since 2018 · Verified Walk Prague profile</p>
+          <p class="guide-stars"><span data-guide-modal-rating>9.6/10</span> <em data-guide-modal-reviews>based on 124 reviews</em></p>
+          <div class="guide-languages" data-guide-modal-languages></div>
+        </section>
+        <aside class="guide-side-info">
+          <div class="guide-meta-grid">
+            <article><strong data-guide-modal-tours>0</strong><span>active tours</span></article>
+            <article><strong data-guide-modal-guests>0</strong><span>guests guided</span></article>
+            <article><strong data-guide-modal-specialty>History</strong><span>main specialty</span></article>
+            <article><strong data-guide-modal-bookings>0</strong><span>bookings</span></article>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  {% include "_footer.html" %}
+</body>
+</html>

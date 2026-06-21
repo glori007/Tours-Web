@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin access - Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="auth-body admin-auth-body">
+  <header class="auth-header">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+      <span>Walk Prague</span>
+    </a>
+    <p>Return to <a href="{{ url_for('signin') }}">Sign in</a></p>
+  </header>
+
+  <main class="admin-access-page">
+    <form class="auth-form admin-access-form" action="{{ url_for('admin_dashboard') }}" method="get">
+      <header>
+        <h1>Admin access</h1>
+        <p>Enter platform administrator credentials.</p>
+      </header>
+
+      <section class="admin-warning" role="alert">
+        This area can be accessed only by authorized Walk Prague administrators.
+      </section>
+
+      <label class="auth-field">
+        <span>Admin email</span>
+        <input type="email" name="admin_email" placeholder="admin@walkprague.cz" autocomplete="email" required>
+      </label>
+
+      <label class="auth-field">
+        <span>Password</span>
+        <span class="password-wrap">
+          <input type="password" name="admin_password" placeholder="Admin password" autocomplete="current-password" required>
+          <button type="button" aria-label="Show password" data-toggle-password>Show</button>
+        </span>
+      </label>
+
+      <button class="auth-submit" type="submit">Access Admin Dashboard</button>
+    </form>
+  </main>
+</body>
+</html>

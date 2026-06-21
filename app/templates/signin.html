@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in - Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="auth-body">
+  <header class="auth-header">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+      <span>Walk Prague</span>
+    </a>
+    <p>No account? <a href="{{ url_for('register') }}" data-role-target="register">Register</a></p>
+  </header>
+
+  <main class="auth-layout">
+    <aside class="auth-intro" aria-label="Sign in benefits">
+      <div class="auth-orb auth-orb-large"></div>
+      <div class="auth-orb auth-orb-small"></div>
+      <a class="brand auth-panel-brand" href="{{ url_for('index') }}">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+        <span>Walk Prague</span>
+      </a>
+      <h1 data-auth-intro-title>Welcome back, explorer.</h1>
+      <p data-auth-intro-copy>Sign in to manage your tour bookings, track your Prague adventures, and discover new walks.</p>
+      <ul class="auth-benefits" data-auth-benefits>
+        <li><span>01</span>Access free walking tours across Prague</li>
+        <li><span>02</span>Book spots for yourself and up to 3 friends</li>
+        <li><span>03</span>Save favourites and track completed tours</li>
+      </ul>
+    </aside>
+
+    <section class="auth-form-panel" aria-labelledby="signin-title">
+      <form class="auth-form" action="#" method="post" data-auth-form>
+        <header>
+          <h2 id="signin-title">Sign in</h2>
+          <p data-auth-subtitle>Welcome back to Walk Prague</p>
+        </header>
+
+        <div class="role-tabs" role="tablist" aria-label="Account type">
+          <button class="is-active" type="button" role="tab" aria-selected="true" data-auth-role="participant">Participant</button>
+          <button type="button" role="tab" aria-selected="false" data-auth-role="guide">Guide</button>
+        </div>
+
+        <input type="hidden" name="role" value="participant" data-auth-role-input>
+
+        <label class="auth-field">
+          <span>Email address</span>
+          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </label>
+
+        <label class="auth-field">
+          <span>Password</span>
+          <span class="password-wrap">
+            <input type="password" name="password" placeholder="Your password" autocomplete="current-password" required data-password-input>
+            <button type="button" aria-label="Show password" data-toggle-password>Show</button>
+          </span>
+        </label>
+
+        <div class="auth-form-row">
+          <a href="#forgot-password">Forgot password?</a>
+        </div>
+
+        <button class="auth-submit" type="submit" data-auth-submit>Sign In as Participant</button>
+
+        <p class="auth-create">New to Walk Prague? <a href="{{ url_for('register') }}" data-role-target="register">Create a free account</a></p>
+
+        <button class="admin-hold-link" type="button" data-admin-hold data-admin-url="{{ url_for('admin_access') }}" aria-label="Hold for 3 seconds to open admin access">Admin access</button>
+      </form>
+    </section>
+  </main>
+
+  {% set auth_footer = true %}
+  {% include "_footer.html" %}
+</body>
+</html>

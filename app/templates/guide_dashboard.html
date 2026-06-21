@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guide Dashboard | Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="guide-dashboard-body">
+  <header class="site-header">
+    <nav class="nav-bar guide-nav" aria-label="Guide navigation">
+      <a class="brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+        <span>Walk Prague</span>
+      </a>
+      <div class="guide-welcome">
+        <p>Welcome <strong>{{ guide.name.split(" ")[0] }}</strong></p>
+        <a class="nav-button ghost" href="{{ url_for('signin') }}?role=guide">Sign out</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="guide-ops-page">
+    <section class="guide-overview-layout">
+      <article class="guide-hero-card compact">
+        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=260&q=80" alt="{{ guide.name }} profile photo">
+        <div class="guide-hero-copy">
+          <h1>{{ guide.name }}</h1>
+          <p>Lead Local Guide since 2018 · Master of History, Charles University</p>
+          <div class="guide-hero-tags">
+            <span>⭐ {{ guide.rating }} rating</span>
+            <span>🗣 English, German, Italian</span>
+            <span>🗺 {{ guide.active_tours }} active blueprints</span>
+          </div>
+        </div>
+      </article>
+
+      <aside class="guide-stat-grid" aria-label="Guide statistics">
+        <article class="guide-stat-card blue">
+          <span>◌</span>
+          <strong>{{ guide.active_tours }}</strong>
+          <p>Active Tours</p>
+        </article>
+        <article class="guide-stat-card green">
+          <span>▣</span>
+          <strong>28</strong>
+          <p>Total Bookings</p>
+        </article>
+        <article class="guide-stat-card orange">
+          <span>♙</span>
+          <strong>67</strong>
+          <p>Participants</p>
+        </article>
+        <article class="guide-stat-card purple">
+          <span>☑</span>
+          <strong>12</strong>
+          <p>Tours Reported</p>
+        </article>
+        <article class="guide-stat-card amber">
+          <span>★</span>
+          <strong>4.8</strong>
+          <p>Avg. Rating</p>
+          <small>124 reviews</small>
+        </article>
+      </aside>
+    </section>
+
+    <section class="guide-ops-section" id="guide-my-tours">
+      <header class="guide-section-heading guide-section-heading-row">
+        <div>
+          <h2>My Tours</h2>
+          <p>Review your tour blueprints and see whether editing is locked because reservations already exist.</p>
+        </div>
+        <button class="guide-add-tour-button" type="button" data-open-add-tour>Add new tour +</button>
+      </header>
+      <div class="guide-tour-grid">
+        {% for tour in guide.tours %}
+        {% set total_expected = namespace(value=0) %}
+        {% for schedule in tour.schedules %}
+          {% set total_expected.value = total_expected.value + schedule.expected %}
+        {% endfor %}
+        <article class="guide-tour-card-v2">
+          <div class="guide-tour-cover">
+            {% if loop.index == 1 %}
+            <img src="{{ url_for('static', filename='img/tours/free-walking-tour-prague-old-town-castle-02.webp') }}" alt="{{ tour.title }}">
+            {% elif loop.index == 2 %}
+            <img src="https://images.unsplash.com/photo-1600623471616-8c1966c91ff6?auto=format&fit=crop&w=900&q=80" alt="{{ tour.title }}">
+            {% else %}
+            <img src="https://images.unsplash.com/photo-1551867633-194f125bddfa?auto=format&fit=crop&w=900&q=80" alt="{{ tour.title }}">
+            {% endif %}
+          </div>
+          <div class="guide-tour-body">
+            <h3>{{ tour.title }}</h3>
+            <div class="guide-tour-meta">
+              <span>⌛ Duration: {{ "3 hours" if loop.first else "2 hours" }}</span>
+              <span>✣ Meeting point: {{ tour.meeting_point }}</span>
+              <span>👥 Max capacity: {{ tour.schedules[0].max_participants }}</span>
+            </div>
+            <div class="guide-tour-chips">
+              <span>Historical</span>
+              <span>Architectural</span>
+              <span>Local legends</span>
+              <span>Traditions</span>
+              <span>More...</span>
+            </div>
+            <button
+              class="guide-dark-button"
+              type="button"
+              data-guide-tour-details
+              data-tour-title="{{ tour.title }}"
+              data-tour-status="{{ tour.status }}"
+              data-tour-languages="{{ tour.languages }}"
+              data-tour-meeting="{{ tour.meeting_point }}"
+              data-tour-expected="{{ total_expected.value }}"
+              data-tour-max="{{ tour.schedules[0].max_participants }}"
+              data-tour-duration="{{ '180' if loop.first else '120' }}"
+              data-tour-locked="{{ 'true' if total_expected.value > 0 else 'false' }}"
+            >More Details</button>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="guide-ops-section" id="guide-reservations">
+      <header class="guide-section-heading">
+        <h2>Timetable & Expected Reservations</h2>
+        <p>Inspect your schedule and verify booked participants for upcoming dates.</p>
+      </header>
+      <div class="guide-timetable-layout">
+        <div class="guide-ledger-stack">
+          {% for tour in guide.tours %}
+          {% set booked_count = namespace(value=0) %}
+          {% for schedule in tour.schedules %}
+            {% if schedule.expected > 0 %}
+              {% set booked_count.value = booked_count.value + 1 %}
+            {% endif %}
+          {% endfor %}
+          {% if booked_count.value > 0 %}
+          <article class="guide-ledger-card">
+            <header>
+              <h3>{{ tour.title }}</h3>
+              <p>Booked dates: <strong>{{ booked_count.value }}</strong></p>
+            </header>
+            {% for schedule in tour.schedules %}
+            {% if schedule.expected > 0 %}
+            <article class="guide-schedule-row-v2">
+              <div>
+                <h4>{{ schedule.date }}</h4>
+                <p>🕒 {{ schedule.time }} | 🗣 {{ schedule.language }}</p>
+              </div>
+              <div>
+                <span>Expected Participants</span>
+                <strong>{{ schedule.expected }}/{{ schedule.max_participants }}</strong>
+              </div>
+              <button
+                class="guide-dark-button"
+                type="button"
+                data-guide-reservations
+                data-reservation-title="{{ tour.title }}"
+                data-reservation-date="{{ schedule.date }} at {{ schedule.time }}"
+                data-reservation-expected="{{ schedule.expected }}"
+                data-reservation-groups="{{ schedule.reserved_groups }}"
+              >More Details</button>
+            </article>
+            {% endif %}
+            {% endfor %}
+          </article>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-ops-section" id="guide-pending-reports">
+      <header class="guide-section-heading">
+        <h2>Pending Reports</h2>
+        <p>Declare actual attendance and upload one evidence photo for completed tours with reservations.</p>
+      </header>
+      <div class="guide-pending-reports">
+        <article>
+          <span>Filing Required</span>
+          <h3>Complete Prague Free Tour</h3>
+          <p><strong>Date Run:</strong> Fri, June 19, 2026 @ 02:00 PM</p>
+          <p><strong>Language:</strong> Italian | <strong>Booked expected seats:</strong> 5</p>
+          <button class="guide-orange-button" type="button" data-guide-report data-report-title="Complete Prague Free Tour" data-report-date="Fri, June 19, 2026 at 02:00 PM" data-report-expected="5">File Report Declaring Attendance</button>
+        </article>
+        <article>
+          <span>Filing Required</span>
+          <h3>Prague Castle Morning Walk</h3>
+          <p><strong>Date Run:</strong> Mon, June 15, 2026 @ 01:00 PM</p>
+          <p><strong>Language:</strong> German | <strong>Booked expected seats:</strong> 4</p>
+          <button class="guide-orange-button" type="button" data-guide-report data-report-title="Prague Castle Morning Walk" data-report-date="Mon, June 15, 2026 at 01:00 PM" data-report-expected="4">File Report Declaring Attendance</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="guide-ops-section" id="guide-past-reports">
+      <header class="guide-section-heading">
+        <h2>Past Reports History</h2>
+        <p>Certified attendance reports already reviewed by the platform audit team.</p>
+      </header>
+      <div class="guide-past-report-list">
+        <article>
+          <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1400&q=80" alt="Tour group evidence">
+          <h3>Complete Prague Free Tour</h3>
+          <p><strong>Executed Date:</strong> Thu, June 18, 2026 @ 10:00 AM</p>
+          <p><strong>Declared Attendance:</strong> 12 participants (Expected bookings were 14)</p>
+          <strong class="certified-label">✓ Certified</strong>
+          <span>Audit Verified</span>
+        </article>
+        <article>
+          <img src="https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=1400&q=80" alt="Walking tour evidence">
+          <h3>Prague Castle Morning Walk</h3>
+          <p><strong>Executed Date:</strong> Wed, June 17, 2026 @ 11:00 AM</p>
+          <p><strong>Declared Attendance:</strong> 9 participants (Expected bookings were 9)</p>
+          <strong class="certified-label">✓ Certified</strong>
+          <span>Audit Verified</span>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div class="guide-ops-modal" data-guide-ops-modal aria-hidden="true">
+    <section class="guide-ops-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-ops-modal-title">
+      <header>
+        <h2 id="guide-ops-modal-title" data-guide-ops-title>Details</h2>
+        <button type="button" data-guide-ops-close aria-label="Close window">×</button>
+      </header>
+      <div class="guide-ops-modal-body" data-guide-ops-body></div>
+      <footer>
+        <button class="guide-muted-button" type="button" data-guide-ops-close>Close</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="guide-ops-modal" data-guide-report-modal aria-hidden="true">
+    <form class="guide-ops-dialog guide-report-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-report-title">
+      <header>
+        <h2 id="guide-report-title" data-guide-report-title>Report Attendance</h2>
+        <p data-guide-report-date>Occurrence</p>
+      </header>
+      <div class="guide-report-body">
+        <label>
+          <span>Declared Actual Attendees</span>
+          <input type="number" min="0" value="1">
+        </label>
+        <p>Expected participant booked seats count: <strong data-guide-report-expected>5</strong></p>
+        <label class="guide-upload-box">
+          <span>Evidence Photo Upload</span>
+          <input type="file" accept="image/*">
+          <strong>📸</strong>
+          <em>Drag and drop or click here to choose group evidence photo</em>
+        </label>
+      </div>
+      <footer>
+        <button class="guide-muted-button" type="button" data-guide-report-close>Cancel</button>
+        <button class="guide-orange-button compact" type="button">Apply</button>
+      </footer>
+    </form>
+  </div>
+
+  <div class="guide-ops-modal" data-add-tour-modal aria-hidden="true">
+    <form class="guide-ops-dialog guide-add-tour-dialog" role="dialog" aria-modal="true" aria-labelledby="add-tour-title">
+      <header>
+        <div>
+          <h2 id="add-tour-title" data-add-tour-title>Add Tour</h2>
+          <p data-add-tour-subtitle>Create a tour blueprint that can later be saved to the database.</p>
+        </div>
+        <button type="button" data-close-add-tour aria-label="Close add tour window">×</button>
+      </header>
+
+      <div class="guide-add-tour-body">
+        <section class="guide-form-section">
+          <span class="guide-form-step">1</span>
+          <label>
+            <strong>Title of the tour</strong>
+            <input type="text" name="tour_title" placeholder="Complete Prague Free Tour" required>
+          </label>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">2</span>
+          <div class="guide-form-copy">
+            <strong>Weekly schedule, language, and duration</strong>
+            <p>Schedules for the same guide cannot overlap. The same tour may run more than once on the same day only when the times do not overlap and the language is different.</p>
+          </div>
+          <div class="guide-schedule-builder" data-schedule-builder>
+            <article class="guide-schedule-edit-row">
+              <label>
+                <span>Day</span>
+                <select name="schedule_day[]" required>
+                  <option>Monday</option>
+                  <option>Tuesday</option>
+                  <option>Wednesday</option>
+                  <option>Thursday</option>
+                  <option>Friday</option>
+                  <option>Saturday</option>
+                  <option>Sunday</option>
+                </select>
+              </label>
+              <label>
+                <span>Start time</span>
+                <input type="time" name="schedule_time[]" value="09:00" required>
+              </label>
+              <label>
+                <span>Duration</span>
+                <select name="schedule_duration[]" required>
+                  <option value="90">90 min</option>
+                  <option value="120">120 min</option>
+                  <option value="150">150 min</option>
+                  <option value="180">180 min</option>
+                  <option value="210">210 min</option>
+                  <option value="240">240 min</option>
+                </select>
+              </label>
+              <label>
+                <span>Language</span>
+                <select name="schedule_language[]" required>
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>German</option>
+                  <option>French</option>
+                  <option>Italian</option>
+                  <option>Portuguese</option>
+                </select>
+              </label>
+              <button type="button" class="guide-row-remove" data-remove-schedule aria-label="Remove schedule row">×</button>
+            </article>
+          </div>
+          <div class="guide-schedule-actions">
+            <button class="guide-muted-button" type="button" data-add-schedule-row>Add schedule row</button>
+            <p data-schedule-warning aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">3</span>
+          <label>
+            <strong>Maximum number of people</strong>
+            <input type="number" name="max_people" min="1" max="50" value="15" required>
+          </label>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">4</span>
+          <div class="guide-form-copy">
+            <strong>Tour themes</strong>
+            <p>Select at least one theme.</p>
+          </div>
+          <div class="guide-option-scroll" data-required-group="themes">
+            <label><input type="checkbox" name="themes" value="Historical"> Historical</label>
+            <label><input type="checkbox" name="themes" value="Artistic"> Artistic</label>
+            <label><input type="checkbox" name="themes" value="Architectural"> Architectural</label>
+            <label><input type="checkbox" name="themes" value="Gastronomic"> Gastronomic</label>
+            <label><input type="checkbox" name="themes" value="Literary"> Literary</label>
+            <label><input type="checkbox" name="themes" value="Cinematic"> Cinematic</label>
+            <label><input type="checkbox" name="themes" value="Musical"> Musical</label>
+            <label><input type="checkbox" name="themes" value="Political"> Political</label>
+            <label><input type="checkbox" name="themes" value="Alternative"> Alternative</label>
+            <label><input type="checkbox" name="themes" value="Local legends and traditions"> Local legends & traditions</label>
+          </div>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">5</span>
+          <div class="guide-form-copy">
+            <strong>Tour stops</strong>
+            <p>Add at least 4 stops.</p>
+          </div>
+          <div class="guide-stops-builder" data-stops-builder>
+            <input type="text" name="stops[]" placeholder="Old Town Square" required>
+            <input type="text" name="stops[]" placeholder="Astronomical Clock" required>
+            <input type="text" name="stops[]" placeholder="Church of Our Lady before Tyn" required>
+            <input type="text" name="stops[]" placeholder="Charles Bridge" required>
+          </div>
+          <div class="guide-stop-actions">
+            <button class="guide-muted-button" type="button" data-add-stop>Add stop</button>
+            <button class="guide-muted-button" type="button" data-remove-stop disabled>Remove last stop</button>
+          </div>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">6</span>
+          <div class="guide-form-copy">
+            <strong>Accessibility</strong>
+            <p>Select the options that apply.</p>
+          </div>
+          <div class="guide-option-scroll compact" data-required-group="accessibility">
+            <label><input type="checkbox" name="accessibility" value="Wheelchair accessible"> Wheelchair accessible</label>
+            <label><input type="checkbox" name="accessibility" value="Suitable for children"> Suitable for children</label>
+            <label><input type="checkbox" name="accessibility" value="Pet friendly"> Pet friendly</label>
+          </div>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">7</span>
+          <label>
+            <strong>Brief description of the tour</strong>
+            <textarea name="brief_description" rows="4" placeholder="Describe the route, story, and experience visitors can expect." required></textarea>
+          </label>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">8</span>
+          <label class="guide-photo-upload">
+            <strong>Tour photos</strong>
+            <input type="file" name="tour_photos" accept="image/*" multiple required data-tour-photos>
+            <span>Upload minimum 5 photos</span>
+            <em data-photo-count>No photos selected</em>
+          </label>
+        </section>
+      </div>
+
+      <footer>
+        <p data-add-tour-message aria-live="polite"></p>
+        <button class="guide-muted-button" type="button" data-close-add-tour>Cancel</button>
+        <button class="guide-orange-button compact" type="button" data-edit-tour hidden>Edit</button>
+        <button class="guide-orange-button compact" type="submit" data-save-tour>Save Tour Draft</button>
+      </footer>
+    </form>
+  </div>
+
+  {% include "_footer.html" %}
+</body>
+</html>

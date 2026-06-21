@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-label="Old Prague alchemy tour">
+  <rect width="900" height="620" fill="#2b333a"/>
+  <circle cx="690" cy="130" r="70" fill="#caa75e"/>
+  <path d="M0 420c160-75 290-45 450-60 155-14 265-75 450-40v300H0z" fill="#742c25"/>
+  <path d="M120 430h90V270h75v160h105V220h82v210h85V310h72v120h150v190H120z" fill="#1f2529"/>
+  <path d="M420 220l40-125 40 125z" fill="#1f2529"/>
+  <path d="M190 495h520" stroke="#caa75e" stroke-width="20" stroke-linecap="round"/>
+</svg>

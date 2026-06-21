@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-label="Vltava river and Charles Bridge">
+  <rect width="900" height="620" fill="#c9d9df"/>
+  <path d="M0 360h900v260H0z" fill="#527381"/>
+  <path d="M0 310h900v70H0z" fill="#9f3f2f"/>
+  <path d="M80 380c55-95 115-95 170 0M325 380c55-95 115-95 170 0M570 380c55-95 115-95 170 0" fill="#c9d9df"/>
+  <path d="M130 260h75v50h-75zM420 240h75v70h-75zM690 265h75v45h-75z" fill="#29343d"/>
+  <path d="M0 500c190-55 325-55 515 0 135 40 255 40 385 0" fill="none" stroke="#f7f2e8" stroke-width="16" opacity=".8"/>
+</svg>

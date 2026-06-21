@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}?v=3" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav-bar" aria-label="Main navigation">
+      <a class="brand" href="#top" aria-label="Walk Prague home">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+        <span>Walk Prague</span>
+      </a>
+      <ul class="auth-nav">
+        {% if participant_view %}
+        <li><span class="participant-welcome">Welcome {{ participant.name }}</span></li>
+        <li><a class="nav-button ghost" href="{{ url_for('participant_dashboard') }}">My profile</a></li>
+        <li><a class="nav-button" href="{{ url_for('index') }}">Sign out</a></li>
+        {% else %}
+        <li><a class="nav-button ghost" href="{{ url_for('signin') }}">Sign in</a></li>
+        <li><a class="nav-button" href="{{ url_for('register') }}">Register</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-label="Explore Prague">
+      <div class="hero-slide is-active" data-bg-index="0"></div>
+      <div class="hero-slide" data-bg-index="1"></div>
+      <div class="hero-slide" data-bg-index="2"></div>
+      <div class="hero-slide" data-bg-index="3"></div>
+      <div class="hero-slide" data-bg-index="4"></div>
+      <div class="hero-overlay"></div>
+      <article class="hero-content">
+        <h1>Explore Prague<br>One Step at a Time</h1>
+        <p>Join free walking tours led by passionate local guides. Discover medieval history, Baroque architecture, hidden courtyards and local secrets. Pay only what you feel.</p>
+        <div class="hero-actions">
+          <a class="primary-action" href="#tour-results">Explore Tours</a>
+          <a class="secondary-action" href="{{ url_for('register') }}?role=guide">Become a Guide</a>
+        </div>
+      </article>
+      <section class="hero-stats" aria-label="Platform numbers">
+        <article><strong>14+</strong><span>Active<br>Tours</span></article>
+        <article><strong>11</strong><span>Local<br>Guides</span></article>
+        <article><strong>6</strong><span>Languages</span></article>
+      </section>
+    </section>
+
+    <section class="trust-band" aria-label="Quick facts">
+      <article><strong>4,200+</strong><span>Happy Walkers</span></article>
+      <article><strong>98%</strong><span>Satisfaction Rate</span></article>
+      <article><strong>Daily</strong><span>Tours Available</span></article>
+      <article><strong>Free</strong><span>Always & Forever</span></article>
+      <article><strong>32</strong><span>Meeting Points</span></article>
+      <article><strong>8.6/10</strong><span>Avg Guide Score</span></article>
+      <article><strong>24h</strong><span>Easy Cancel</span></article>
+    </section>
+
+    <section class="tour-section" id="tours">
+      <aside class="filters" aria-label="Tour filters">
+        <header class="filter-heading">
+          <h2>Find your walk</h2>
+          <span data-result-count>24 tours available</span>
+        </header>
+        <button class="date-filter" type="button" data-open-date-picker onclick="event.preventDefault(); document.querySelector('[data-date-modal]')?.classList.add('is-open'); document.querySelector('[data-date-modal]')?.setAttribute('aria-hidden', 'false'); window.openWalkPragueDatePicker?.(event);">
+          <strong data-date-label>Jun 18, 2026 - Jul 02, 2026</strong>
+        </button>
+        <section>
+          <h3>Language of the tour</h3>
+          <label class="filter-row"><span>All languages</span><input type="checkbox" data-select-all-languages></label>
+          <label class="filter-row"><span>English</span><input type="checkbox" data-language-option checked></label>
+          <label class="filter-row"><span>Spanish</span><input type="checkbox" data-language-option></label>
+          <label class="filter-row"><span>German</span><input type="checkbox" data-language-option></label>
+          <label class="filter-row"><span>Italian</span><input type="checkbox" data-language-option></label>
+          <label class="filter-row"><span>Portuguese</span><input type="checkbox" data-language-option></label>
+        </section>
+        <section>
+          <h3>Duration</h3>
+          <label class="filter-row"><span>Up to 90 minutes</span><input type="checkbox"></label>
+          <label class="filter-row"><span>90 - 120 minutes</span><input type="checkbox" checked></label>
+          <label class="filter-row"><span>More than 120 minutes</span><input type="checkbox"></label>
+        </section>
+        <section>
+          <h3>Availability Status</h3>
+          <label class="filter-row"><span>Hide fully booked tours</span><input type="checkbox"></label>
+          <label class="filter-row"><span>1+ place available</span><input type="checkbox"></label>
+          <label class="filter-row"><span>2+ places available</span><input type="checkbox"></label>
+          <label class="filter-row"><span>3+ places available</span><input type="checkbox"></label>
+        </section>
+        <section>
+          <h3>Tour Theme / Category</h3>
+          <label class="filter-row"><span>Historical</span><input type="checkbox" checked></label>
+          <label class="filter-row"><span>Artistic</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Architectural</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Gastronomic</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Literary</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Cinematic</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Musical</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Political</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Alternative</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Local legends & traditions</span><input type="checkbox"></label>
+        </section>
+        <section>
+          <h3>Accessibility</h3>
+          <label class="filter-row"><span>Wheelchair accessible</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Suitable for children</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Pet friendly</span><input type="checkbox"></label>
+        </section>
+        <section>
+          <h3>Start time</h3>
+          <label class="filter-row"><span>Any time</span><input type="checkbox" checked></label>
+          <label class="filter-row"><span>Morning, from 9:00 AM</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Late morning, from 11:00 AM</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Afternoon, from 2:00 PM</span><input type="checkbox"></label>
+          <label class="filter-row"><span>Evening, from 7:00 PM</span><input type="checkbox"></label>
+        </section>
+        <div class="filter-actions">
+          <button class="clear-filters" type="button" data-clear-filters>Clear all</button>
+        </div>
+      </aside>
+
+      <section class="tour-results" id="tour-results" aria-label="Available tours">
+        {% set language_flags = {"English": "🇬🇧", "Spanish": "🇪🇸", "German": "🇩🇪", "Italian": "🇮🇹", "French": "🇫🇷", "Portuguese": "🇵🇹"} %}
+        {% for tour in tours %}
+        {% set detail_url = url_for('tour_detail', slug=tour.slug, mode='participant') if participant_view else url_for('tour_detail', slug=tour.slug) %}
+        <article class="tour-card{% if loop.first %} featured{% endif %}" data-tour-url="{{ detail_url }}" tabindex="0" role="link" aria-label="Open {{ tour.title }}">
+          <figure>
+            {% if loop.first %}
+            <span class="tour-ribbon">Featured Tour</span>
+            <span class="seller-badge">Best Seller</span>
+            {% endif %}
+            <img src="{{ url_for('static', filename=tour.image) if not tour.image.startswith('http') else tour.image }}" alt="{{ tour.title }}">
+          </figure>
+          <section class="tour-details">
+            <div class="language-row" aria-label="Languages">
+              {% for language in tour.languages %}
+              <span aria-label="{{ language }}">{{ language_flags.get(language, "🏳") }}</span>
+              {% endfor %}
+            </div>
+            <h2>{{ tour.title }}</h2>
+            <p class="rating-line">
+              <span class="rating-badge {% if tour.rating|float >= 9 %}high{% elif tour.rating|float >= 7 %}medium{% elif tour.rating|float >= 5 %}low{% else %}danger{% endif %}">{{ tour.rating }}/10</span>
+              <span>({{ tour.reviews }} reviews)</span>
+            </p>
+            <p>{{ tour.description }}</p>
+            <div class="guide-row">
+              <img src="{{ tour.guide_photo }}" alt="{{ tour.guide }} profile photo">
+              <span>Guided by <strong>{{ tour.guide }}</strong></span>
+              <span class="duration">⌛ {{ tour.duration }}</span>
+            </div>
+            <a class="booking-button" href="{{ detail_url }}">{{ "Book Tour" if participant_view else "Info & Booking" }}</a>
+          </section>
+        </article>
+        {% endfor %}
+        <button class="load-more-tours" type="button">Load more tours →</button>
+      </section>
+    </section>
+
+    <section class="reviews-section" aria-label="Traveler reviews">
+      <header>
+        <h2>167,175 Reviews in Prague</h2>
+        <div class="review-controls">
+          <button type="button" data-review-prev aria-label="Previous reviews">←</button>
+          <button type="button" data-review-next aria-label="Next reviews">→</button>
+        </div>
+      </header>
+      <div class="review-track" data-review-track>
+        <article class="review-card"><header class="review-card-head"><p class="review-score high">9.8/10</p><p class="review-author">by Zoe Henkes<br>Reviewed on Jun 14, 2026</p></header><h3>Friendly and memorable guide</h3><p>Aleks was very friendly and gave a clear, relaxed tour through the old city. The stories were easy to follow and the pace was perfect.</p></article>
+        <article class="review-card"><header class="review-card-head"><p class="review-score high">9.6/10</p><p class="review-author">by Alberto Villoria<br>Reviewed on Jun 14, 2026</p></header><h3>Excellent Prague introduction</h3><p>The route was entertaining and well researched. Our guide mixed history with practical tips that helped us enjoy the rest of the trip.</p></article>
+        <article class="review-card"><header class="review-card-head"><p class="review-score medium">8.7/10</p><p class="review-author">by Marie Charlotte<br>Reviewed on Jun 13, 2026</p></header><h3>Informative and thoughtful</h3><p>A very good tour led by a friendly guide. The stops were interesting and the guide took good care of the group.</p></article>
+        <article class="review-card"><header class="review-card-head"><p class="review-score high">9.3/10</p><p class="review-author">by Lorena Pino<br>Reviewed on Jun 10, 2026</p></header><h3>Highly recommended</h3><p>Our guide was excellent, warm, and precise. The walk gave us a much better understanding of Prague.</p></article>
+        <article class="review-card"><header class="review-card-head"><p class="review-score high">9.5/10</p><p class="review-author">by Andre Silva<br>Reviewed on Jun 9, 2026</p></header><h3>Great castle stories</h3><p>The guide connected history with small local details and kept the group moving comfortably. The viewpoints were beautiful.</p></article>
+        <article class="review-card"><header class="review-card-head"><p class="review-score medium">8.9/10</p><p class="review-author">by Nina Weber<br>Reviewed on Jun 8, 2026</p></header><h3>Easy to follow</h3><p>The tour was relaxed, clear, and practical. We left with good restaurant ideas and a better sense of the city.</p></article>
+      </div>
+    </section>
+
+    <section class="how-it-works" id="guides">
+      <article class="how-card">
+        <p class="section-pill">Simple & Free</p>
+        <h2>How It <em>Works</em></h2>
+        <p class="how-subtitle">Four easy steps to your next unforgettable walk through Prague.</p>
+        <div class="steps">
+          <article><strong>1</strong><h3>Browse Tours</h3><p>Filter by date, duration, or language to find the perfect walk through Prague.</p></article>
+          <article><strong>2</strong><h3>Register & Book</h3><p>Create a free account and reserve your spot for yourself or a group of up to 4.</p></article>
+          <article><strong>3</strong><h3>Show Up & Explore</h3><p>Meet your guide at the starting point and enjoy a memorable walk.</p></article>
+          <article><strong>4</strong><h3>Tip Your Guide</h3><p>If you loved the tour, leave a voluntary tip based on the experience.</p></article>
+        </div>
+      </article>
+    </section>
+
+    <section class="faq-card" id="about">
+      <h2>FAQs about free tours in Prague</h2>
+      <ul>
+        <li><strong>Are free walking tours in Prague really free?</strong><p>Yes. At the end of the tour, you simply pay whatever amount you feel it was worth.</p></li>
+        <li><strong>Do I need to book a walking tour in advance?</strong><p>Yes. Booking in advance is required because tours can fill quickly.</p></li>
+        <li><strong>How much should I tip on a free tour in Prague?</strong><p>Amounts vary based on tour length, guide quality, group size, and personal budget.</p></li>
+        <li><strong>Are walking tours suitable for kids?</strong><p>Yes. Check the tour description to decide whether your children can handle the route.</p></li>
+        <li><strong>What languages are Prague walking tours in?</strong><p>Most tours are available in English, with selected options in Spanish, German, Italian, Portuguese, and French.</p></li>
+      </ul>
+      <button type="button" data-faq-toggle>Read more</button>
+    </section>
+  </main>
+
+  {% include "_footer.html" %}
+  <section class="date-modal" data-date-modal aria-hidden="true">
+    <div class="date-dialog" role="dialog" aria-modal="true" aria-labelledby="date-dialog-title">
+      <header>
+        <button class="month-nav" type="button" data-calendar-prev aria-label="Previous months">‹</button>
+        <h2 id="date-dialog-title">Select date or period</h2>
+        <button class="month-nav" type="button" data-calendar-next aria-label="Next months">›</button>
+        <button type="button" data-close-date-picker aria-label="Close date picker">×</button>
+      </header>
+      <section class="calendar-pair">
+        <article class="calendar-month">
+          <h3 data-month-title="0">June 2026</h3>
+          <div class="weekday-row"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+          <div class="calendar-grid" data-calendar-grid="0"></div>
+        </article>
+        <article class="calendar-month">
+          <h3 data-month-title="1">July 2026</h3>
+          <div class="weekday-row"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+          <div class="calendar-grid" data-calendar-grid="1"></div>
+        </article>
+      </section>
+      <footer>
+        <button class="clear-date" type="button" data-clear-date>Clear</button>
+        <button class="apply-date" type="button" data-apply-date>Apply</button>
+      </footer>
+    </div>
+  </section>
+  <script>
+    (() => {
+      const modal = document.querySelector("[data-date-modal]");
+      const opener = document.querySelector("[data-open-date-picker]");
+      const label = document.querySelector("[data-date-label]");
+      const monthTitles = [...document.querySelectorAll("[data-month-title]")];
+      const grids = [...document.querySelectorAll("[data-calendar-grid]")];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      let start = null;
+      let end = null;
+      const valueFor = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const labelFor = (value) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const refreshSelection = () => {
+        document.querySelectorAll("[data-date]").forEach((button) => {
+          const value = button.dataset.date;
+          button.classList.toggle("selected", value === start || value === end);
+          button.classList.toggle("in-range", Boolean(end && value > start && value < end));
+        });
+      };
+      const renderCalendar = () => {
+        grids.forEach((grid, index) => {
+          const month = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + index, 1);
+          monthTitles[index].textContent = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          grid.innerHTML = "";
+          for (let offset = 0; offset < (month.getDay() + 6) % 7; offset += 1) {
+            const spacer = document.createElement("span");
+            spacer.className = "calendar-spacer";
+            grid.appendChild(spacer);
+          }
+          const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+          for (let day = 1; day <= days; day += 1) {
+            const date = new Date(month.getFullYear(), month.getMonth(), day);
+            const value = valueFor(date);
+            const button = document.createElement("button");
+            button.type = "button";
+            button.dataset.date = value;
+            button.textContent = day;
+            if (date < today) {
+              button.disabled = true;
+              button.classList.add("is-disabled");
+            }
+            button.addEventListener("click", () => {
+              if (!start || end || value < start) {
+                start = value;
+                end = null;
+              } else if (value !== start) {
+                end = value;
+              }
+              if (label && start) label.textContent = end ? `${labelFor(start)} - ${labelFor(end)}` : labelFor(start);
+              refreshSelection();
+            });
+            grid.appendChild(button);
+          }
+        });
+        refreshSelection();
+      };
+      const open = (event) => {
+        event?.preventDefault?.();
+        renderCalendar();
+        modal?.classList.add("is-open");
+        modal?.setAttribute("aria-hidden", "false");
+      };
+      const close = () => {
+        modal?.classList.remove("is-open");
+        modal?.setAttribute("aria-hidden", "true");
+      };
+      window.openWalkPragueDatePicker = open;
+      opener?.addEventListener("click", open);
+      document.querySelector("[data-close-date-picker]")?.addEventListener("click", close);
+      document.querySelector("[data-apply-date]")?.addEventListener("click", close);
+      document.querySelector("[data-clear-date]")?.addEventListener("click", () => {
+        start = null;
+        end = null;
+        if (label) label.textContent = "Select dates";
+        refreshSelection();
+      });
+      document.querySelector("[data-calendar-prev]")?.addEventListener("click", () => {
+        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+        renderCalendar();
+      });
+      document.querySelector("[data-calendar-next]")?.addEventListener("click", () => {
+        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+        renderCalendar();
+      });
+    })();
+  </script>
+  <a class="scroll-top" href="#top" aria-label="Back to top">↑</a>
+</body>
+</html>

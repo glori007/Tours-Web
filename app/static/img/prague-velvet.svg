@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-label="Wenceslas Square and Velvet Revolution">
+  <rect width="900" height="620" fill="#ebe2cf"/>
+  <path d="M0 455h900v165H0z" fill="#29343d"/>
+  <path d="M245 140h410v315H245z" fill="#b64f3a"/>
+  <path d="M290 180h70v275h-70zM415 180h70v275h-70zM540 180h70v275h-70z" fill="#f7f2e8"/>
+  <path d="M200 455h500l-65 120H265z" fill="#caa75e"/>
+  <path d="M75 520c120-70 220-70 340 0s240 70 410 0" fill="none" stroke="#fffdfa" stroke-width="18"/>
+</svg>

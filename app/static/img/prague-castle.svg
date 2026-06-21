@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-label="Prague Castle architecture">
+  <rect width="900" height="620" fill="#d7dde0"/>
+  <path d="M0 400h900v220H0z" fill="#29343d"/>
+  <path d="M130 390h640v230H130z" fill="#a94332"/>
+  <path d="M210 270h105v350H210zM395 220h110v400H395zM590 285h100v335H590z" fill="#f4ead8"/>
+  <path d="M230 270l35-115 35 115zM415 220l35-145 35 145zM610 285l30-100 30 100z" fill="#29343d"/>
+  <path d="M70 430h760" stroke="#caa75e" stroke-width="18" stroke-linecap="round"/>
+</svg>

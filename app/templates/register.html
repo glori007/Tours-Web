@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register - Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="auth-body">
+  <header class="auth-header">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+      <span>Walk Prague</span>
+    </a>
+    <p>Already have an account? <a href="{{ url_for('signin') }}" data-role-target="signin">Sign in</a></p>
+  </header>
+
+  <main class="auth-layout">
+    <aside class="auth-intro" aria-label="Registration benefits">
+      <div class="auth-orb auth-orb-large"></div>
+      <div class="auth-orb auth-orb-small"></div>
+      <a class="brand auth-panel-brand" href="{{ url_for('index') }}">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+        <span>Walk Prague</span>
+      </a>
+      <h1 data-register-intro-title>Join the Prague walking community.</h1>
+      <p data-register-intro-copy>Create your free account to book tours, bring friends along, and explore Prague like a local.</p>
+      <ul class="auth-benefits" data-register-benefits>
+        <li><span>01</span>Book walking tours instantly</li>
+        <li><span>02</span>Bring up to 3 friends per booking</li>
+        <li><span>03</span>Guides can create and manage their own tours</li>
+      </ul>
+    </aside>
+
+    <section class="auth-form-panel" aria-labelledby="register-title">
+      <form class="auth-form" action="#" method="post" data-register-form>
+        <header>
+          <h2 id="register-title">Create account</h2>
+          <p data-register-subtitle>Choose your role to get started</p>
+        </header>
+
+        <div class="role-tabs" role="tablist" aria-label="Account type">
+          <button class="is-active" type="button" role="tab" aria-selected="true" data-register-role="participant">Participant</button>
+          <button type="button" role="tab" aria-selected="false" data-register-role="guide">Guide</button>
+        </div>
+
+        <input type="hidden" name="role" value="participant" data-register-role-input>
+
+        <div class="auth-field-grid">
+          <label class="auth-field">
+            <span>First name</span>
+            <input type="text" name="first_name" placeholder="Jan" autocomplete="given-name" required>
+          </label>
+          <label class="auth-field">
+            <span>Last name</span>
+            <input type="text" name="last_name" placeholder="Novak" autocomplete="family-name" required>
+          </label>
+        </div>
+
+        <label class="auth-field">
+          <span>Email address</span>
+          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </label>
+
+        <label class="auth-field">
+          <span>Password</span>
+          <span class="password-wrap">
+            <input type="password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" minlength="8" required>
+            <button type="button" aria-label="Show password" data-toggle-password>Show</button>
+          </span>
+        </label>
+
+        <label class="auth-field">
+          <span>Confirm password</span>
+          <span class="password-wrap">
+            <input type="password" name="confirm_password" placeholder="Repeat password" autocomplete="new-password" minlength="8" required>
+            <button type="button" aria-label="Show password" data-toggle-password>Show</button>
+          </span>
+        </label>
+
+        <div class="role-fields is-hidden" data-register-guide-fields>
+          <label class="auth-field">
+            <span>Phone number</span>
+            <input type="tel" name="phone" placeholder="+420 777 000 000" autocomplete="tel">
+          </label>
+          <div class="auth-field">
+            <span>Languages you guide in</span>
+            <div class="guide-language-select" data-guide-language-select>
+              <button class="guide-language-toggle" type="button" data-guide-language-toggle aria-expanded="false">
+                <span data-guide-language-placeholder>Select languages</span>
+                <span class="guide-language-arrow" aria-hidden="true">⌄</span>
+              </button>
+              <div class="guide-language-menu" data-guide-language-menu>
+                <button type="button" data-guide-language-option data-value="English" data-chip="🇬🇧 English">🇬🇧 English</button>
+                <button type="button" data-guide-language-option data-value="Spanish" data-chip="🇪🇸 Spanish">🇪🇸 Spanish</button>
+                <button type="button" data-guide-language-option data-value="German" data-chip="🇩🇪 German">🇩🇪 German</button>
+                <button type="button" data-guide-language-option data-value="Italian" data-chip="🇮🇹 Italian">🇮🇹 Italian</button>
+                <button type="button" data-guide-language-option data-value="French" data-chip="🇫🇷 French">🇫🇷 French</button>
+                <button type="button" data-guide-language-option data-value="Portuguese" data-chip="🇵🇹 Portuguese">🇵🇹 Portuguese</button>
+                <button type="button" data-guide-language-option data-value="Czech" data-chip="🇨🇿 Czech">🇨🇿 Czech</button>
+                <button class="guide-language-apply" type="button" data-guide-language-apply>Apply</button>
+              </div>
+            </div>
+            <div class="guide-language-chips" data-guide-language-chips aria-live="polite"></div>
+            <input type="hidden" name="guide_languages" data-guide-language-value>
+          </div>
+          <p class="field-note">Guide accounts can later create tours, choose tour languages, manage bookings, and respond to reviews.</p>
+        </div>
+
+        <button class="auth-submit" type="submit" data-register-submit>Create Participant Account</button>
+
+        <p class="auth-create">Already have an account? <a href="{{ url_for('signin') }}" data-role-target="signin">Sign in</a></p>
+      </form>
+    </section>
+  </main>
+
+  {% set auth_footer = true %}
+  {% include "_footer.html" %}
+</body>
+</html>

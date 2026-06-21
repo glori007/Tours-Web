@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Participant Profile | Walk Prague</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</head>
+<body class="participant-dashboard-body">
+  <header class="site-header">
+    <nav class="nav-bar" aria-label="Participant navigation">
+      <a class="brand" href="{{ url_for('participant_home') }}" aria-label="Walk Prague home">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
+        <span>Walk Prague</span>
+      </a>
+      <ul class="auth-nav">
+        <li><span class="participant-welcome">Welcome {{ participant.name }}</span></li>
+        <li><a class="nav-button ghost" href="{{ url_for('participant_home') }}">Browse tours</a></li>
+        <li><a class="nav-button" href="{{ url_for('index') }}">Sign out</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="participant-profile-page">
+    <section class="participant-profile-hero">
+      <div>
+        <p class="section-kicker">Participant Profile</p>
+        <h1>{{ participant.name }}'s reservations</h1>
+        <p>Manage your Walk Prague bookings and see the guests included in each reservation.</p>
+      </div>
+      <aside>
+        <strong>{{ participant.reservations|length }}</strong>
+        <span>active reservations</span>
+        <p>{{ participant.email }}</p>
+      </aside>
+    </section>
+
+    <section class="participant-reservations" aria-label="Reserved tours">
+      <header>
+        <h2>Reserved Tours</h2>
+        <p>Cancellations are available until 24 hours before the selected tour start time.</p>
+      </header>
+
+      <div class="participant-reservation-grid">
+        {% for reservation in participant.reservations %}
+        <article class="participant-reservation-card">
+          <div class="participant-reservation-top">
+            <span class="reservation-status {{ 'locked' if not reservation.can_cancel else 'confirmed' }}">{{ reservation.status }}</span>
+            <a href="{{ url_for('tour_detail', slug=reservation.slug, mode='participant') }}">View tour</a>
+          </div>
+          <h3>{{ reservation.tour }}</h3>
+          <dl>
+            <div><dt>Date</dt><dd>{{ reservation.date }}</dd></div>
+            <div><dt>Start time</dt><dd>{{ reservation.start_time }}</dd></div>
+            <div><dt>Meeting point</dt><dd>{{ reservation.meeting_point }}</dd></div>
+            <div><dt>Language</dt><dd>{{ reservation.language }}</dd></div>
+            <div><dt>People included</dt><dd>{{ reservation.people }}</dd></div>
+          </dl>
+          <section class="additional-guests">
+            <h4>Additional participants</h4>
+            {% if reservation.additional_participants %}
+            <ul>
+              {% for guest in reservation.additional_participants %}
+              <li>{{ guest }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p>No additional participants.</p>
+            {% endif %}
+          </section>
+          <p class="cancel-note">{{ reservation.cancel_note }}</p>
+          <button class="cancel-reservation-button" type="button" {% if not reservation.can_cancel %}disabled{% endif %} data-cancel-reservation data-reservation-id="{{ reservation.id }}">
+            {{ "Cancel reservation" if reservation.can_cancel else "Cancellation closed" }}
+          </button>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  {% include "_footer.html" %}
+</body>
+</html>
