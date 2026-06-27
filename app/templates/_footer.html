@@ -1,6 +1,10 @@
 <footer class="site-footer{% if auth_footer %} auth-page-footer{% endif %}">
   <section class="footer-about">
+    {% if current_user.is_authenticated and current_user.role in ['guide', 'admin'] %}
+    <span class="brand brand-static"><img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt=""><span>Walk Prague</span></span>
+    {% else %}
     <a class="brand" href="{{ url_for('index') }}"><img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt=""><span>Walk Prague</span></a>
+    {% endif %}
     <p>Free walking tours in the heart of the Czech capital. Led by passionate locals who love sharing the magic of Prague.</p>
     <div class="social-icons" aria-label="Social links">
     <a href="https://www.instagram.com/" title="Instagram" aria-label="Instagram">
@@ -23,8 +27,6 @@
   <section class="footer-links">
     <h2>Explore</h2>
     <a href="{{ url_for('index') }}#tour-results">All Tours</a>
-    <a href="{{ url_for('index') }}#about">About Prague</a>
-    <a href="{{ url_for('index') }}#guides">Meet the Guides</a>
   </section>
   <section class="footer-links">
     <h2>Account</h2>

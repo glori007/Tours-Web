@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -16,9 +17,9 @@
       </a>
       <ul class="auth-nav">
         {% if participant_view %}
-        <li><span class="participant-welcome">Welcome Anna</span></li>
+        <li><span class="participant-welcome">Welcome {{ current_user.first_name if current_user.is_authenticated else 'Guest' }}</span></li>
         <li><a class="nav-button ghost" href="{{ url_for('participant_dashboard') }}">My profile</a></li>
-        <li><a class="nav-button" href="{{ url_for('index') }}">Sign out</a></li>
+        <li><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a></li>
         {% else %}
         <li><a class="nav-button ghost" href="{{ url_for('signin') }}">Sign in</a></li>
         <li><a class="nav-button" href="{{ url_for('register') }}">Register</a></li>
@@ -31,7 +32,7 @@
     <section class="tour-gallery" aria-label="{{ tour.title }} photos" data-tour-gallery>
       {% set gallery = tour.gallery|default([tour.image]) %}
       {% for image in gallery %}
-      <img class="tour-gallery-slide{% if loop.first %} is-active{% endif %}" src="{{ url_for('static', filename=image) if not image.startswith('http') else image }}" alt="{{ tour.title }} photo {{ loop.index }}" data-gallery-slide>
+      <img class="tour-gallery-slide{% if loop.first %} is-active{% endif %}" src="{{ image }}" alt="{{ tour.title }} photo {{ loop.index }}" data-gallery-slide>
       {% endfor %}
       <div class="gallery-shade"></div>
       <button class="gallery-arrow gallery-arrow-left" type="button" aria-label="Previous photo" data-gallery-prev>‹</button>
@@ -48,141 +49,82 @@
 
         <section class="tour-summary">
           <div class="tour-provider-block">
-            <span class="detail-rating">{{ tour.rating }}</span>
+            <span class="detail-rating">{{ tour.rating }}/10</span>
             <p>Provided by: <a href="#guide-tours">{{ tour.guide }}</a></p>
           </div>
           <div class="booking-note">
-            <span>✓</span>
+            <span>{{ icon('check') }}</span>
             <p><strong>Cancel free up to 24h prior</strong><br>No fixed price - pay what you feel the tour is worth.</p>
           </div>
         </section>
 
         <section class="tour-facts" aria-label="Tour facts">
-          <article><span>⌛</span><p><strong>Duration</strong>{{ tour.duration }}</p></article>
-          <article><span>◎</span><p><strong>Languages</strong>{{ tour.languages }}</p></article>
-          <article><span>✣</span><p><strong>Meeting point</strong>{{ tour.meeting_point }}</p></article>
-          <article><span>✓</span><p><strong>Free tour</strong>Voluntary tips are welcome after the walk</p></article>
+          <article><span>{{ icon('duration') }}</span><p><strong>Duration</strong>{{ tour.duration }}</p></article>
+          <article><span>{{ icon('language') }}</span><p><strong>Languages</strong>{{ tour.languages }}</p></article>
+          <article><span>{{ icon('pin') }}</span><p><strong>Meeting point</strong>{{ tour.meeting_point }}</p></article>
+          <article><span>{{ icon('check') }}</span><p><strong>Free tour</strong>Voluntary tips are welcome after the walk</p></article>
         </section>
 
         <section class="detail-copy">
           <h2>Overview</h2>
-          <p>* Don't forget to check out and book our other tours in the "New Town" and the "Prague Castle."</p>
-          <p>Want to start your holiday in Prague well? Join our 2-in-1 tour. The tour that actually includes 2 tours. Discover the Old Town, Lesser Town, Jewish Quarter and Charles Bridge with us!</p>
-          <p>When you talk about the Old Town, you are talking about the old historical part of Prague. There was little bombing here during the Second World War, so almost all buildings are still standing and in their original condition. Prague's Old Town is truly an impressive open-air museum. During the tour, you will explore exciting places such as Old Town Square, the Astronomical Clock, Charles Bridge, and the Jewish Quarter.</p>
-          <p>This walking tour is easy for any company or family to keep up with. On our tour, you will see all the main must-see sights.</p>
+          <p>{{ tour.description }}</p>
         </section>
 
         <section class="tour-stops-card">
           <p class="section-kicker">Tour Stops</p>
           <ol class="tour-stops">
-            <li><div><strong>Old Town Square</strong><span>The beating heart of Prague, surrounded by Gothic, Baroque and Renaissance architecture.</span></div></li>
-            <li><div><strong>Astronomical Clock</strong><span>One of the most visited sights in Europe, with stories behind the hourly procession and its 600-year history.</span></div></li>
-            <li><div><strong>Church of Our Lady before Tyn</strong><span>The iconic twin Gothic towers that define the Prague skyline.</span></div></li>
-            <li><div><strong>Charles Bridge</strong><span>Cross the Vltava with statues, river views, and legends from Prague's medieval life.</span></div></li>
-            <li><div><strong>Jewish Quarter</strong><span>Learn about synagogues, old lanes, and the history of Josefov.</span></div></li>
-            <li><div><strong>Powder Gate & Republic Square</strong><span>Finish near the Royal Route with recommendations for what to explore next.</span></div></li>
-            <li class="extra-stop is-hidden"><div><strong>Municipal House</strong><span>See one of Prague's finest Art Nouveau buildings and hear how it connects to Czech independence.</span></div></li>
-            <li class="extra-stop is-hidden"><div><strong>Republic Square Wrap-up</strong><span>End with local recommendations for food, viewpoints, and nearby places to visit after the tour.</span></div></li>
+            {% for stop in tour.stops %}
+            <li{% if loop.index > 6 %} class="extra-stop is-hidden"{% endif %}>
+              <div><strong>{{ stop }}</strong></div>
+            </li>
+            {% endfor %}
           </ol>
+          {% if tour.stops|length > 6 %}
           <button class="view-more-stops" type="button" data-stops-toggle>View more</button>
+          {% endif %}
         </section>
 
         <section class="tour-conditions">
           <h2>Tour Conditions</h2>
           <div>
-            <article><span>♿</span><p><strong>Accessibility</strong>Suitable for people with reduced mobility</p></article>
-            <article><span>👥</span><p><strong>Minimum Attendees</strong>No minimum attendees</p></article>
-            <article><span>♟</span><p><strong>Children</strong>Suitable for families with children</p></article>
-            <article><span>◆</span><p><strong>Pets</strong>Pet-friendly</p></article>
+            <article><span>{{ icon('wheelchair') }}</span><p><strong>Accessibility</strong>{{ 'Suitable for people with reduced mobility' if tour.accessibility.wheelchair_accessible else 'Not wheelchair accessible' }}</p></article>
+            <article><span>{{ icon('users') }}</span><p><strong>Group size</strong>Up to {{ tour.max_participants }} participants</p></article>
+            <article><span>{{ icon('child') }}</span><p><strong>Children</strong>{{ 'Suitable for families with children' if tour.accessibility.suitable_for_children else 'Not recommended for young children' }}</p></article>
+            <article><span>{{ icon('paw') }}</span><p><strong>Pets</strong>{{ 'Pet-friendly' if tour.accessibility.pet_friendly else 'Pets not allowed' }}</p></article>
           </div>
         </section>
 
-        <section class="activity-includes">
-          <h2>This activity includes:</h2>
-          <ul>
-            <li>Lennon Wall</li>
-            <li>Charles Bridge</li>
-            <li>Prague Astronomical Clock</li>
-            <li>The Powder Tower</li>
-            <li>Old Town Square</li>
-            <li>Piss sculpture</li>
-            <li>The Old-New Synagogue</li>
-            <li>Spanish Synagogue</li>
-          </ul>
-        </section>
-
-        <section class="trusted-card">
-          <span>◎</span>
-          <p><strong>Verified & Trusted</strong>This activity has been verified on Tripadvisor</p>
-        </section>
       </article>
 
       <aside class="tour-booking-panel" aria-label="Availability and booking">
         <section class="availability-card">
-          {% if admin_view %}
+          {% if admin_view or staff_view %}
           <div class="admin-tour-notice">
-            <strong>Administrator preview</strong>
-            <span>Booking is disabled in this view.</span>
+            <strong>{% if staff_view and current_user.role == 'guide' %}Guide preview{% else %}Administrator preview{% endif %}</strong>
+            <span>Reservations can only be made by participants.</span>
           </div>
           {% endif %}
           <h2>Availability & Language</h2>
-          <div class="mini-calendar-head">
-            <button type="button" aria-label="Previous week" data-week-prev>‹</button>
-            <strong data-week-title>June 2026</strong>
-            <button type="button" aria-label="Next week" data-week-next>›</button>
+          {% if tour.has_availability %}
+          <div class="cal" data-calendar
+               data-availability="{{ tour.availability|tojson|forceescape }}"
+               data-today="{{ tour.today }}">
+            <div class="cal-head">
+              <button class="cal-nav" type="button" data-cal-prev aria-label="Previous week">{{ icon('chevron','ico cal-chevron cal-chevron-left') }}</button>
+              <strong data-cal-month>—</strong>
+              <button class="cal-nav" type="button" data-cal-next aria-label="Next week">{{ icon('chevron','ico cal-chevron cal-chevron-right') }}</button>
+            </div>
+            <div class="cal-weekdays"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+            <div class="cal-days" data-cal-days></div>
+            <hr>
+            <h3 class="cal-selected-date" data-cal-selected-date></h3>
+            <div class="cal-panel" data-cal-panel></div>
           </div>
-          <div class="mini-weekdays" data-weekdays><span>Fri</span><span>Sat</span><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span></div>
-          <div class="mini-days" data-tour-week>
-            <button class="scheduled active" type="button" data-week-day="0" data-bookable="true">19</button>
-            <button type="button" data-week-day="1">20</button>
-            <button type="button" data-week-day="2">21</button>
-            <button class="scheduled" type="button" data-week-day="3" data-bookable="true">22</button>
-            <button type="button" data-week-day="4">23</button>
-            <button type="button" data-week-day="5">24</button>
-            <button class="scheduled fully-booked-day" type="button" data-week-day="6">25</button>
-          </div>
+          {% else %}
+          <p class="no-tour-day">No upcoming departures are currently scheduled for this tour.</p>
+          {% endif %}
           <hr>
-          <h3 data-tour-selected-date>Fri, 19 June 2026</h3>
-          <div class="tour-day-schedule" data-tour-day-panel="0">
-            <section class="booking-language">
-              <h4><span>🇮🇹</span> Italian</h4>
-              <div class="schedule-options"><button class="active" type="button" data-occurrence-id="{{ tour.occurrences[0].id if tour.occurrences|length > 0 else '' }}" data-available-left="{{ tour.occurrences[0].available_left if tour.occurrences|length > 0 else 8 }}" data-schedule-summary="Fri, June 19, 2026 · 2:00 PM · Italian">2:00 PM</button><span class="availability-label available">Available 7/15</span></div>
-            </section>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="1">
-            <p class="no-tour-day">No tours available for this date.</p>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="2">
-            <p class="no-tour-day">No tours available for this date.</p>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="3">
-            <section class="booking-language">
-              <h4><span>🇬🇧</span> English</h4>
-              <div class="schedule-options"><button class="active" type="button" data-occurrence-id="{{ tour.occurrences[1].id if tour.occurrences|length > 1 else '' }}" data-available-left="{{ tour.occurrences[1].available_left if tour.occurrences|length > 1 else 2 }}" data-schedule-summary="Mon, June 22, 2026 · 9:00 AM · English">9:00 AM</button><span class="availability-label available">Available 13/15</span></div>
-            </section>
-            <section class="booking-language">
-              <h4><span>🇪🇸</span> Spanish</h4>
-              <div class="schedule-options"><button type="button" data-occurrence-id="{{ tour.occurrences[2].id if tour.occurrences|length > 2 else '' }}" data-available-left="0" data-schedule-summary="Mon, June 22, 2026 · 7:00 PM · Spanish">7:00 PM</button><span class="availability-label full">Fully Booked 15/15</span></div>
-            </section>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="4">
-            <p class="no-tour-day">No tours available for this date.</p>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="5">
-            <p class="no-tour-day">No tours available for this date.</p>
-          </div>
-          <div class="tour-day-schedule is-hidden" data-tour-day-panel="6">
-            <p class="no-tour-day">No tours available for this date.</p>
-            <section class="booking-language fully-booked-schedule" aria-label="Fully booked schedules">
-              <h4><span>🇵🇹</span> Portuguese</h4>
-              <div class="schedule-options"><button type="button" disabled>11:00 AM</button><span class="availability-label full">Fully Booked 15/15</span></div>
-            </section>
-            <section class="booking-language fully-booked-schedule" aria-label="Fully booked schedules">
-              <h4><span>🇬🇧</span> English</h4>
-              <div class="schedule-options"><button type="button" disabled>6:00 PM</button><span class="availability-label full">Fully Booked 15/15</span></div>
-            </section>
-          </div>
-          {% if not admin_view %}
+          {% if not admin_view and not staff_view %}
           <section class="party-size" aria-label="Number of participants" data-booking-control>
             <h4>Book spots</h4>
             <p class="booking-capacity-note" data-booking-capacity>8 places left for this departure.</p>
@@ -212,7 +154,11 @@
           </section>
           <hr>
           <p class="booking-feedback" data-booking-feedback aria-live="polite"></p>
+          {% if already_booked %}
+          <span class="book-now is-disabled" aria-disabled="true" title="You already have an upcoming booking for this tour">Booked</span>
+          {% else %}
           <a class="book-now" href="{{ url_for('participant_dashboard') if participant_view else url_for('signin') }}" data-book-now data-participant-booking="{{ 'true' if participant_view else 'false' }}">Book Now</a>
+          {% endif %}
           {% endif %}
         </section>
       </aside>
@@ -221,19 +167,22 @@
     <section class="guide-profile-card" id="guide-tours">
       <p class="section-kicker">Your Guide</p>
       <div class="guide-profile-grid">
-        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=220&q=80" alt="{{ tour.guide }} profile photo">
+        <img src="{{ tour.guide_photo }}" alt="{{ tour.guide }} profile photo">
         <section class="guide-profile-main">
           <h2>{{ tour.guide }}</h2>
-          <p>Local guide since 2018 · History graduate</p>
           <p class="guide-email">Email: <a href="mailto:{{ tour.guide_email }}">{{ tour.guide_email }}</a></p>
-          <p class="guide-stars"><span>9.6/10</span> <em>based on 124 reviews</em></p>
-          <div class="guide-languages"><span>🇬🇧 English</span><span>🇩🇪 German</span><span>🇨🇿 Czech</span></div>
+          {% if tour.guide_reviews and tour.guide_reviews != "0" %}
+          <p class="guide-stars"><span>{{ tour.guide_rating }}/10</span> <em>based on {{ tour.guide_reviews }} reviews</em></p>
+          {% endif %}
+          <div class="guide-languages">
+            {% for lang in tour.guide_languages %}<span><img class="lang-flag" src="{{ lang.flag }}" alt=""> {{ lang.name }}</span>{% endfor %}
+          </div>
         </section>
         <aside class="guide-side-info">
           <div class="guide-meta-grid">
-            <article><strong>6</strong><span>active tours</span></article>
-            <article><strong>1,840</strong><span>guests guided</span></article>
-            <article><strong>History</strong><span>main specialty</span></article>
+            <article><strong>{{ tour.guide_tour_count }}</strong><span>active tours</span></article>
+            <article><strong>{{ tour.guide_guests }}</strong><span>guests guided</span></article>
+            <article><strong>{{ tour.guide_specialty or '—' }}</strong><span>main specialty</span></article>
           </div>
         </aside>
       </div>
@@ -251,15 +200,22 @@
       </div>
     </section>
 
+    {% if tour.more_tours %}
     <section class="provider-tours">
       <h2>More Tours by {{ tour.guide }}</h2>
       <div class="provider-tour-grid">
-        <article><img src="https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=700&q=80" alt="Old Town square at night"><p>🇬🇧 🇩🇪 🇪🇸</p><h3>Free Tour Prague: Christmas Decorations</h3><strong>9.6 (134)</strong><span>Fri · 3:45 PM · 2h 45min</span><a class="more-info-button" href="#">More Info</a></article>
-        <article><img src="https://images.unsplash.com/photo-1564410267841-915d8e4d71ea?auto=format&fit=crop&w=700&q=80" alt="Historic underground museum"><p>🇬🇧</p><h3>Free Tour New Town of Prague, WWII & Resistance</h3><strong>9.6 (119)</strong><span>Sun · 10:30 AM · 2h 30min</span><a class="more-info-button" href="#">More Info</a></article>
-        <article><img src="https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?auto=format&fit=crop&w=700&q=80" alt="Prague castle guards"><p>🇬🇧 🇪🇸</p><h3>Free Tour Around the Prague Castle</h3><strong>9.1 (170)</strong><span>Mon · 3:30 PM · 2h 30min</span><a class="more-info-button" href="#">More Info</a></article>
-        <article><img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=700&q=80" alt="Terezin memorial courtyard"><p>🇬🇧 🇩🇪</p><h3>Free Tour Through Prague Memory Sites</h3><strong>Be the first to review</strong><span>Sat · 10:15 AM · 2 hours</span><a class="more-info-button" href="#">More Info</a></article>
+        {% for other in tour.more_tours %}
+        <article>
+          <img src="{{ other.image }}" alt="{{ other.title }}">
+          <p class="more-tour-flags">{% for f in other.flags %}<img class="lang-flag" src="{{ f }}" alt="">{% endfor %}</p>
+          <h3>{{ other.title }}</h3>
+          <span>{{ icon('duration') }} Duration: {{ other.duration }}</span>
+          <a class="more-info-button" href="{{ url_for('tour_detail', slug=other.slug) }}">More Info</a>
+        </article>
+        {% endfor %}
       </div>
     </section>
+    {% endif %}
   </main>
 
   {% include "_footer.html" %}

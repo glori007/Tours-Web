@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -34,39 +35,57 @@
     </aside>
 
     <section class="auth-form-panel" aria-labelledby="register-title">
-      <form class="auth-form" action="#" method="post" data-register-form>
+      {# Server-side flash messages #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="auth-alert auth-alert--{{ category }}" role="alert" id="flash-msg">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {# The form now POSTs to the real register endpoint #}
+      <form class="auth-form" action="{{ url_for('register') }}" method="post" enctype="multipart/form-data" novalidate data-register-form>
         <header>
           <h2 id="register-title">Create account</h2>
           <p data-register-subtitle>Choose your role to get started</p>
         </header>
 
         <div class="role-tabs" role="tablist" aria-label="Account type">
-          <button class="is-active" type="button" role="tab" aria-selected="true" data-register-role="participant">Participant</button>
-          <button type="button" role="tab" aria-selected="false" data-register-role="guide">Guide</button>
+          <button class="{% if form_role != 'guide' %}is-active{% endif %}" type="button" role="tab"
+                  aria-selected="{{ 'false' if form_role == 'guide' else 'true' }}"
+                  data-register-role="participant">Participant</button>
+          <button class="{% if form_role == 'guide' %}is-active{% endif %}" type="button" role="tab"
+                  aria-selected="{{ 'true' if form_role == 'guide' else 'false' }}"
+                  data-register-role="guide">Guide</button>
         </div>
 
-        <input type="hidden" name="role" value="participant" data-register-role-input>
+        <input type="hidden" name="role" value="{{ form_role or 'participant' }}" data-register-role-input>
 
         <div class="auth-field-grid">
           <label class="auth-field">
             <span>First name</span>
-            <input type="text" name="first_name" placeholder="Jan" autocomplete="given-name" required>
+            <input type="text" name="first_name" id="reg-first-name" placeholder="Jan"
+                   autocomplete="given-name" required value="{{ form_first_name or '' }}">
           </label>
           <label class="auth-field">
             <span>Last name</span>
-            <input type="text" name="last_name" placeholder="Novak" autocomplete="family-name" required>
+            <input type="text" name="last_name" id="reg-last-name" placeholder="Novak"
+                   autocomplete="family-name" required value="{{ form_last_name or '' }}">
           </label>
         </div>
 
         <label class="auth-field">
           <span>Email address</span>
-          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+          <input type="email" name="email" id="reg-email" placeholder="you@example.com"
+                 autocomplete="email" required value="{{ form_email or '' }}">
         </label>
 
         <label class="auth-field">
           <span>Password</span>
           <span class="password-wrap">
-            <input type="password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" minlength="8" required>
+            <input type="password" name="password" id="reg-password"
+                   placeholder="Min. 8 characters" autocomplete="new-password" minlength="8" required>
             <button type="button" aria-label="Show password" data-toggle-password>Show</button>
           </span>
         </label>
@@ -74,41 +93,79 @@
         <label class="auth-field">
           <span>Confirm password</span>
           <span class="password-wrap">
-            <input type="password" name="confirm_password" placeholder="Repeat password" autocomplete="new-password" minlength="8" required>
+            <input type="password" name="confirm_password" id="reg-confirm-password"
+                   placeholder="Repeat password" autocomplete="new-password" minlength="8" required>
             <button type="button" aria-label="Show password" data-toggle-password>Show</button>
           </span>
         </label>
 
-        <div class="role-fields is-hidden" data-register-guide-fields>
-          <label class="auth-field">
-            <span>Phone number</span>
-            <input type="tel" name="phone" placeholder="+420 777 000 000" autocomplete="tel">
-          </label>
+        {# Guide-only fields — shown/hidden by JS when Guide tab is selected #}
+        <div class="role-fields {% if form_role != 'guide' %}is-hidden{% endif %}" data-register-guide-fields>
           <div class="auth-field">
             <span>Languages you guide in</span>
             <div class="guide-language-select" data-guide-language-select>
               <button class="guide-language-toggle" type="button" data-guide-language-toggle aria-expanded="false">
-                <span data-guide-language-placeholder>Select languages</span>
-                <span class="guide-language-arrow" aria-hidden="true">⌄</span>
+                <span data-guide-language-placeholder>Add languages</span>
+                <span class="guide-language-arrow" aria-hidden="true">{{ icon('chevron') }}</span>
               </button>
               <div class="guide-language-menu" data-guide-language-menu>
-                <button type="button" data-guide-language-option data-value="English" data-chip="🇬🇧 English">🇬🇧 English</button>
-                <button type="button" data-guide-language-option data-value="Spanish" data-chip="🇪🇸 Spanish">🇪🇸 Spanish</button>
-                <button type="button" data-guide-language-option data-value="German" data-chip="🇩🇪 German">🇩🇪 German</button>
-                <button type="button" data-guide-language-option data-value="Italian" data-chip="🇮🇹 Italian">🇮🇹 Italian</button>
-                <button type="button" data-guide-language-option data-value="French" data-chip="🇫🇷 French">🇫🇷 French</button>
+                <button type="button" data-guide-language-option data-value="English"    data-chip="🇬🇧 English">🇬🇧 English</button>
+                <button type="button" data-guide-language-option data-value="German"     data-chip="🇩🇪 German">🇩🇪 German</button>
+                <button type="button" data-guide-language-option data-value="Italian"    data-chip="🇮🇹 Italian">🇮🇹 Italian</button>
                 <button type="button" data-guide-language-option data-value="Portuguese" data-chip="🇵🇹 Portuguese">🇵🇹 Portuguese</button>
-                <button type="button" data-guide-language-option data-value="Czech" data-chip="🇨🇿 Czech">🇨🇿 Czech</button>
-                <button class="guide-language-apply" type="button" data-guide-language-apply>Apply</button>
+                <button type="button" data-guide-language-option data-value="Spanish"    data-chip="🇪🇸 Spanish">🇪🇸 Spanish</button>
               </div>
             </div>
             <div class="guide-language-chips" data-guide-language-chips aria-live="polite"></div>
-            <input type="hidden" name="guide_languages" data-guide-language-value>
+            {# Hidden field populated by JS; required only when role=guide (enforced by JS + back-end) #}
+            <input type="hidden" name="guide_languages" id="reg-guide-languages" data-guide-language-value>
           </div>
-          <p class="field-note">Guide accounts can later create tours, choose tour languages, manage bookings, and respond to reviews.</p>
+
+          <div class="auth-field">
+            <span>Specialty <em class="field-optional">(optional, up to 4 selectable)</em></span>
+            <div class="guide-language-select" data-guide-specialty-select>
+              <button class="guide-language-toggle" type="button" data-guide-specialty-toggle aria-expanded="false">
+                <span data-guide-specialty-placeholder>Add specialties</span>
+                <span class="guide-language-arrow" aria-hidden="true">{{ icon('chevron') }}</span>
+              </button>
+              <div class="guide-language-menu" data-guide-specialty-menu>
+                <button type="button" data-guide-specialty-option data-value="Alternative &amp; Street Art">Alternative &amp; Street Art</button>
+                <button type="button" data-guide-specialty-option data-value="Architecture">Architecture</button>
+                <button type="button" data-guide-specialty-option data-value="Art &amp; Culture">Art &amp; Culture</button>
+                <button type="button" data-guide-specialty-option data-value="Castle District">Castle District</button>
+                <button type="button" data-guide-specialty-option data-value="Communism &amp; Cold War">Communism &amp; Cold War</button>
+                <button type="button" data-guide-specialty-option data-value="Gastronomy">Gastronomy</button>
+                <button type="button" data-guide-specialty-option data-value="History">History</button>
+                <button type="button" data-guide-specialty-option data-value="Jewish Heritage">Jewish Heritage</button>
+                <button type="button" data-guide-specialty-option data-value="Local Legends">Local Legends</button>
+              </div>
+            </div>
+            <div class="guide-language-chips" data-guide-specialty-chips aria-live="polite"></div>
+            <input type="hidden" name="specialties" id="reg-specialty" data-guide-specialty-value value="">
+          </div>
+
+          <div class="auth-field">
+            <span>Profile picture <em class="field-optional">(optional)</em></span>
+            <div class="profile-photo-picker" data-profile-photo-picker>
+              <img class="profile-photo-preview"
+                   src="{{ url_for('static', filename='img/default-profile.png') }}"
+                   data-default-src="{{ url_for('static', filename='img/default-profile.png') }}"
+                   alt="Profile picture preview" data-profile-photo-preview>
+              <div class="profile-photo-picker-copy">
+                <div class="profile-photo-actions">
+                  <label class="profile-photo-choose" for="reg-profile-photo">Choose a photo</label>
+                  <button type="button" class="profile-photo-remove is-hidden" data-profile-photo-remove>Remove photo</button>
+                </div>
+                <p>PNG, JPG, WEBP or GIF. If you skip this, the default avatar is used.</p>
+                <input class="profile-photo-input" type="file" name="profile_photo" id="reg-profile-photo" accept="image/*" data-profile-photo-input>
+              </div>
+            </div>
+          </div>
+
+          <p class="field-note">Guide accounts can create tours, choose tour languages, manage bookings, and respond to reviews.</p>
         </div>
 
-        <button class="auth-submit" type="submit" data-register-submit>Create Participant Account</button>
+        <button class="auth-submit" type="submit" id="register-submit" data-register-submit>Create Participant Account</button>
 
         <p class="auth-create">Already have an account? <a href="{{ url_for('signin') }}" data-role-target="signin">Sign in</a></p>
       </form>

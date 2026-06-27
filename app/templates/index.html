@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon, flag %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,11 +15,24 @@
         <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
         <span>Walk Prague</span>
       </a>
+      {% if participant_view %}
+      <ul class="main-nav">
+        <li><a href="{{ url_for('participant_home') }}" class="active">Browse tours</a></li>
+        <li><a href="{{ url_for('participant_dashboard') }}">My profile</a></li>
+      </ul>
+      {% endif %}
       <ul class="auth-nav">
         {% if participant_view %}
         <li><span class="participant-welcome">Welcome {{ participant.name }}</span></li>
-        <li><a class="nav-button ghost" href="{{ url_for('participant_dashboard') }}">My profile</a></li>
-        <li><a class="nav-button" href="{{ url_for('index') }}">Sign out</a></li>
+        <li><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a></li>
+        {% elif current_user.is_authenticated and current_user.role == 'guide' %}
+        <li><span class="participant-welcome">Welcome {{ current_user.first_name }}</span></li>
+        <li><a class="nav-button ghost" href="{{ url_for('guide_dashboard') }}">Guide dashboard</a></li>
+        <li><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a></li>
+        {% elif current_user.is_authenticated and current_user.role == 'admin' %}
+        <li><span class="participant-welcome">Welcome {{ current_user.first_name }}</span></li>
+        <li><a class="nav-button ghost" href="{{ url_for('admin_dashboard') }}">Admin dashboard</a></li>
+        <li><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a></li>
         {% else %}
         <li><a class="nav-button ghost" href="{{ url_for('signin') }}">Sign in</a></li>
         <li><a class="nav-button" href="{{ url_for('register') }}">Register</a></li>
@@ -66,96 +80,124 @@
           <h2>Find your walk</h2>
           <span data-result-count>24 tours available</span>
         </header>
-        <button class="date-filter" type="button" data-open-date-picker onclick="event.preventDefault(); document.querySelector('[data-date-modal]')?.classList.add('is-open'); document.querySelector('[data-date-modal]')?.setAttribute('aria-hidden', 'false'); window.openWalkPragueDatePicker?.(event);">
-          <strong data-date-label>Jun 18, 2026 - Jul 02, 2026</strong>
+        <button class="date-filter" type="button" data-open-date-picker>
+          <strong data-date-label>Select dates</strong>
         </button>
-        <section>
-          <h3>Language of the tour</h3>
-          <label class="filter-row"><span>All languages</span><input type="checkbox" data-select-all-languages></label>
-          <label class="filter-row"><span>English</span><input type="checkbox" data-language-option checked></label>
-          <label class="filter-row"><span>Spanish</span><input type="checkbox" data-language-option></label>
-          <label class="filter-row"><span>German</span><input type="checkbox" data-language-option></label>
-          <label class="filter-row"><span>Italian</span><input type="checkbox" data-language-option></label>
-          <label class="filter-row"><span>Portuguese</span><input type="checkbox" data-language-option></label>
-        </section>
-        <section>
-          <h3>Duration</h3>
-          <label class="filter-row"><span>Up to 90 minutes</span><input type="checkbox"></label>
-          <label class="filter-row"><span>90 - 120 minutes</span><input type="checkbox" checked></label>
-          <label class="filter-row"><span>More than 120 minutes</span><input type="checkbox"></label>
-        </section>
-        <section>
-          <h3>Availability Status</h3>
-          <label class="filter-row"><span>Hide fully booked tours</span><input type="checkbox"></label>
-          <label class="filter-row"><span>1+ place available</span><input type="checkbox"></label>
-          <label class="filter-row"><span>2+ places available</span><input type="checkbox"></label>
-          <label class="filter-row"><span>3+ places available</span><input type="checkbox"></label>
-        </section>
-        <section>
-          <h3>Tour Theme / Category</h3>
-          <label class="filter-row"><span>Historical</span><input type="checkbox" checked></label>
-          <label class="filter-row"><span>Artistic</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Architectural</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Gastronomic</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Literary</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Cinematic</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Musical</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Political</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Alternative</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Local legends & traditions</span><input type="checkbox"></label>
-        </section>
-        <section>
-          <h3>Accessibility</h3>
-          <label class="filter-row"><span>Wheelchair accessible</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Suitable for children</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Pet friendly</span><input type="checkbox"></label>
-        </section>
-        <section>
-          <h3>Start time</h3>
-          <label class="filter-row"><span>Any time</span><input type="checkbox" checked></label>
-          <label class="filter-row"><span>Morning, from 9:00 AM</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Late morning, from 11:00 AM</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Afternoon, from 2:00 PM</span><input type="checkbox"></label>
-          <label class="filter-row"><span>Evening, from 7:00 PM</span><input type="checkbox"></label>
-        </section>
+        <details class="filter-section">
+          <summary><h3>Language of the tour</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>All languages</span><input type="checkbox" data-select-all-languages></label>
+            <label class="filter-row"><span>English</span><input type="checkbox" data-language-option></label>
+            <label class="filter-row"><span>Spanish</span><input type="checkbox" data-language-option></label>
+            <label class="filter-row"><span>German</span><input type="checkbox" data-language-option></label>
+            <label class="filter-row"><span>Italian</span><input type="checkbox" data-language-option></label>
+            <label class="filter-row"><span>Portuguese</span><input type="checkbox" data-language-option></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
+        <details class="filter-section">
+          <summary><h3>Duration</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>Up to 90 minutes</span><input type="checkbox"></label>
+            <label class="filter-row"><span>90 - 120 minutes</span><input type="checkbox"></label>
+            <label class="filter-row"><span>More than 120 minutes</span><input type="checkbox"></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
+        <details class="filter-section">
+          <summary><h3>Availability Status</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>Hide fully booked tours</span><input type="checkbox"></label>
+            <label class="filter-row"><span>1+ place available</span><input type="checkbox"></label>
+            <label class="filter-row"><span>2+ places available</span><input type="checkbox"></label>
+            <label class="filter-row"><span>3+ places available</span><input type="checkbox"></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
+        <details class="filter-section">
+          <summary><h3>Tour Theme / Category</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>Historical</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Artistic</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Architectural</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Gastronomic</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Literary</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Cinematic</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Musical</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Political</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Alternative</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Local legends & traditions</span><input type="checkbox"></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
+        <details class="filter-section">
+          <summary><h3>Accessibility</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>Wheelchair accessible</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Suitable for children</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Pet friendly</span><input type="checkbox"></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
+        <details class="filter-section">
+          <summary><h3>Start time</h3><span class="filter-arrow" aria-hidden="true">{{ icon('chevron') }}</span></summary>
+          <div class="filter-options">
+            <label class="filter-row"><span>Any time</span><input type="checkbox" data-select-all-times checked></label>
+            <label class="filter-row"><span>Morning, from 9:00 AM</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Late morning, from 11:00 AM</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Afternoon, from 2:00 PM</span><input type="checkbox"></label>
+            <label class="filter-row"><span>Evening, from 7:00 PM</span><input type="checkbox"></label>
+          </div>
+        </details>
+        <div class="filter-chips" aria-live="polite"></div>
         <div class="filter-actions">
+          <button class="apply-filters" type="button" data-apply-filters>Apply filters</button>
           <button class="clear-filters" type="button" data-clear-filters>Clear all</button>
         </div>
       </aside>
 
       <section class="tour-results" id="tour-results" aria-label="Available tours">
-        {% set language_flags = {"English": "🇬🇧", "Spanish": "🇪🇸", "German": "🇩🇪", "Italian": "🇮🇹", "French": "🇫🇷", "Portuguese": "🇵🇹"} %}
         {% for tour in tours %}
         {% set detail_url = url_for('tour_detail', slug=tour.slug, mode='participant') if participant_view else url_for('tour_detail', slug=tour.slug) %}
-        <article class="tour-card{% if loop.first %} featured{% endif %}" data-tour-url="{{ detail_url }}" tabindex="0" role="link" aria-label="Open {{ tour.title }}">
+        <article class="tour-card{% if loop.first %} featured{% endif %}" data-tour-url="{{ detail_url }}" tabindex="0" role="link" aria-label="Open {{ tour.title }}"
+                 data-tour-card
+                 data-languages="{{ tour.languages|join('|') }}"
+                 data-duration="{{ tour.duration_minutes }}"
+                 data-dates="{{ tour.dates|join('|') }}"
+                 data-start-times="{{ tour.start_times|join('|') }}"
+                 data-places-left="{{ tour.places_left }}"
+                 data-availability="{{ tour.availability_by_date|tojson|forceescape }}"
+                 data-themes="{{ tour.themes|join('|') }}"
+                 data-accessibility="{{ tour.accessibility|join('|') }}">
           <figure>
             {% if loop.first %}
             <span class="tour-ribbon">Featured Tour</span>
             <span class="seller-badge">Best Seller</span>
             {% endif %}
-            <img src="{{ url_for('static', filename=tour.image) if not tour.image.startswith('http') else tour.image }}" alt="{{ tour.title }}">
+            <img src="{{ tour.image }}" alt="{{ tour.title }}">
           </figure>
           <section class="tour-details">
             <div class="language-row" aria-label="Languages">
               {% for language in tour.languages %}
-              <span aria-label="{{ language }}">{{ language_flags.get(language, "🏳") }}</span>
+              {{ flag(language) }}
               {% endfor %}
             </div>
             <h2>{{ tour.title }}</h2>
             <p class="rating-line">
-              <span class="rating-badge {% if tour.rating|float >= 9 %}high{% elif tour.rating|float >= 7 %}medium{% elif tour.rating|float >= 5 %}low{% else %}danger{% endif %}">{{ tour.rating }}/10</span>
+              <span class="rating-badge">{{ tour.rating }}/10</span>
               <span>({{ tour.reviews }} reviews)</span>
             </p>
-            <p>{{ tour.description }}</p>
+            <p class="tour-card-desc">{{ tour.description }}</p>
             <div class="guide-row">
               <img src="{{ tour.guide_photo }}" alt="{{ tour.guide }} profile photo">
               <span>Guided by <strong>{{ tour.guide }}</strong></span>
-              <span class="duration">⌛ {{ tour.duration }}</span>
+              <span class="duration">{{ icon('duration') }} Duration: {{ tour.duration }}</span>
             </div>
             <a class="booking-button" href="{{ detail_url }}">{{ "Book Tour" if participant_view else "Info & Booking" }}</a>
           </section>
         </article>
         {% endfor %}
+        <p class="no-results-message is-hidden" data-no-results>No tours match your current filters. Try widening your search.</p>
         <button class="load-more-tours" type="button">Load more tours →</button>
       </section>
     </section>
@@ -232,94 +274,6 @@
       </footer>
     </div>
   </section>
-  <script>
-    (() => {
-      const modal = document.querySelector("[data-date-modal]");
-      const opener = document.querySelector("[data-open-date-picker]");
-      const label = document.querySelector("[data-date-label]");
-      const monthTitles = [...document.querySelectorAll("[data-month-title]")];
-      const grids = [...document.querySelectorAll("[data-calendar-grid]")];
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      let visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      let start = null;
-      let end = null;
-      const valueFor = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      const labelFor = (value) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const refreshSelection = () => {
-        document.querySelectorAll("[data-date]").forEach((button) => {
-          const value = button.dataset.date;
-          button.classList.toggle("selected", value === start || value === end);
-          button.classList.toggle("in-range", Boolean(end && value > start && value < end));
-        });
-      };
-      const renderCalendar = () => {
-        grids.forEach((grid, index) => {
-          const month = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + index, 1);
-          monthTitles[index].textContent = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-          grid.innerHTML = "";
-          for (let offset = 0; offset < (month.getDay() + 6) % 7; offset += 1) {
-            const spacer = document.createElement("span");
-            spacer.className = "calendar-spacer";
-            grid.appendChild(spacer);
-          }
-          const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-          for (let day = 1; day <= days; day += 1) {
-            const date = new Date(month.getFullYear(), month.getMonth(), day);
-            const value = valueFor(date);
-            const button = document.createElement("button");
-            button.type = "button";
-            button.dataset.date = value;
-            button.textContent = day;
-            if (date < today) {
-              button.disabled = true;
-              button.classList.add("is-disabled");
-            }
-            button.addEventListener("click", () => {
-              if (!start || end || value < start) {
-                start = value;
-                end = null;
-              } else if (value !== start) {
-                end = value;
-              }
-              if (label && start) label.textContent = end ? `${labelFor(start)} - ${labelFor(end)}` : labelFor(start);
-              refreshSelection();
-            });
-            grid.appendChild(button);
-          }
-        });
-        refreshSelection();
-      };
-      const open = (event) => {
-        event?.preventDefault?.();
-        renderCalendar();
-        modal?.classList.add("is-open");
-        modal?.setAttribute("aria-hidden", "false");
-      };
-      const close = () => {
-        modal?.classList.remove("is-open");
-        modal?.setAttribute("aria-hidden", "true");
-      };
-      window.openWalkPragueDatePicker = open;
-      opener?.addEventListener("click", open);
-      document.querySelector("[data-close-date-picker]")?.addEventListener("click", close);
-      document.querySelector("[data-apply-date]")?.addEventListener("click", close);
-      document.querySelector("[data-clear-date]")?.addEventListener("click", () => {
-        start = null;
-        end = null;
-        if (label) label.textContent = "Select dates";
-        refreshSelection();
-      });
-      document.querySelector("[data-calendar-prev]")?.addEventListener("click", () => {
-        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
-        renderCalendar();
-      });
-      document.querySelector("[data-calendar-next]")?.addEventListener("click", () => {
-        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
-        renderCalendar();
-      });
-    })();
-  </script>
   <a class="scroll-top" href="#top" aria-label="Back to top">↑</a>
 </body>
 </html>

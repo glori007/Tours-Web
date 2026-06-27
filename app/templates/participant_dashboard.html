@@ -14,10 +14,13 @@
         <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
         <span>Walk Prague</span>
       </a>
+      <ul class="main-nav">
+        <li><a href="{{ url_for('participant_home') }}">Browse tours</a></li>
+        <li><a href="{{ url_for('participant_dashboard') }}" class="active">My profile</a></li>
+      </ul>
       <ul class="auth-nav">
         <li><span class="participant-welcome">Welcome {{ participant.name }}</span></li>
-        <li><a class="nav-button ghost" href="{{ url_for('participant_home') }}">Browse tours</a></li>
-        <li><a class="nav-button" href="{{ url_for('index') }}">Sign out</a></li>
+        <li><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a></li>
       </ul>
     </nav>
   </header>

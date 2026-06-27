@@ -1,5 +1,7 @@
+{% from "_icons.html" import icon %}
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,16 +9,17 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 </head>
+
 <body class="guide-dashboard-body">
   <header class="site-header">
     <nav class="nav-bar guide-nav" aria-label="Guide navigation">
-      <a class="brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+      <span class="brand brand-static" aria-label="Walk Prague">
         <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
         <span>Walk Prague</span>
-      </a>
+      </span>
       <div class="guide-welcome">
         <p>Welcome <strong>{{ guide.name.split(" ")[0] }}</strong></p>
-        <a class="nav-button ghost" href="{{ url_for('signin') }}?role=guide">Sign out</a>
+        <a class="nav-button ghost" href="{{ url_for('logout') }}">Sign out</a>
       </div>
     </nav>
   </header>
@@ -24,44 +27,80 @@
   <main class="guide-ops-page">
     <section class="guide-overview-layout">
       <article class="guide-hero-card compact">
-        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=260&q=80" alt="{{ guide.name }} profile photo">
+        <img src="{{ guide.profile_photo }}" alt="{{ guide.name }} profile photo">
         <div class="guide-hero-copy">
           <h1>{{ guide.name }}</h1>
-          <p>Lead Local Guide since 2018 · Master of History, Charles University</p>
-          <div class="guide-hero-tags">
-            <span>⭐ {{ guide.rating }} rating</span>
-            <span>🗣 English, German, Italian</span>
-            <span>🗺 {{ guide.active_tours }} active blueprints</span>
+          <a class="guide-hero-email" href="mailto:{{ guide.email }}">{{ guide.email }}</a>
+
+          <div class="guide-hero-meta">
+            <div class="guide-hero-metarow">
+              <span class="guide-hero-label">Languages</span>
+              <div class="guide-pill-row">
+                {% for lang in guide.languages_list %}
+                <span class="guide-pill">{{ lang }}</span>
+                {% else %}
+                <span class="guide-pill">English</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            {% if guide.specialties_list %}
+            <div class="guide-hero-metarow">
+              <span class="guide-hero-label">Specialties</span>
+              <div class="guide-pill-row">
+                {% for spec in guide.specialties_list %}
+                <span class="guide-pill guide-pill-specialty">{{ spec }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
           </div>
         </div>
       </article>
 
       <aside class="guide-stat-grid" aria-label="Guide statistics">
         <article class="guide-stat-card blue">
-          <span>◌</span>
+          <span>{{ icon('route') }}</span>
           <strong>{{ guide.active_tours }}</strong>
           <p>Active Tours</p>
         </article>
         <article class="guide-stat-card green">
-          <span>▣</span>
-          <strong>28</strong>
+          <span>{{ icon('ticket') }}</span>
+          <strong>{{ guide.total_bookings }}</strong>
           <p>Total Bookings</p>
         </article>
         <article class="guide-stat-card orange">
-          <span>♙</span>
-          <strong>67</strong>
+          <span>{{ icon('users') }}</span>
+          <strong>{{ guide.total_participants }}</strong>
           <p>Participants</p>
         </article>
         <article class="guide-stat-card purple">
-          <span>☑</span>
-          <strong>12</strong>
+          <span>{{ icon('clipboard') }}</span>
+          <strong>{{ guide.tours_reported }}</strong>
           <p>Tours Reported</p>
         </article>
         <article class="guide-stat-card amber">
-          <span>★</span>
-          <strong>4.8</strong>
+          <div class="guide-stat-rating-head">
+            <span>{{ icon('star') }}</span>
+            <small>{{ guide.total_reviews }} reviews</small>
+          </div>
+          <strong>{{ guide.rating }}</strong>
           <p>Avg. Rating</p>
-          <small>124 reviews</small>
+        </article>
+        <article class="guide-stat-card blue">
+          <span>{{ icon('clock') }}</span>
+          <strong>{{ guide.upcoming_departures }}</strong>
+          <p>Upcoming Schedules</p>
+        </article>
+        <article class="guide-stat-card red">
+          <span>{{ icon('flag') }}</span>
+          <strong>{{ guide.pending_reports_count }}</strong>
+          <p>Pending Reports</p>
+        </article>
+        <article class="guide-stat-card green">
+          <span>{{ icon('users') }}</span>
+          <strong>{{ guide.avg_group_size }}</strong>
+          <p>Avg. Group Size</p>
         </article>
       </aside>
     </section>
@@ -72,51 +111,47 @@
           <h2>My Tours</h2>
           <p>Review your tour blueprints and see whether editing is locked because reservations already exist.</p>
         </div>
-        <button class="guide-add-tour-button" type="button" data-open-add-tour>Add new tour +</button>
+        <button class="guide-add-tour-button" type="button" data-open-add-tour>Create new tour +</button>
       </header>
       <div class="guide-tour-grid">
         {% for tour in guide.tours %}
         {% set total_expected = namespace(value=0) %}
         {% for schedule in tour.schedules %}
-          {% set total_expected.value = total_expected.value + schedule.expected %}
+        {% set total_expected.value = total_expected.value + schedule.expected %}
         {% endfor %}
         <article class="guide-tour-card-v2">
           <div class="guide-tour-cover">
-            {% if loop.index == 1 %}
-            <img src="{{ url_for('static', filename='img/tours/free-walking-tour-prague-old-town-castle-02.webp') }}" alt="{{ tour.title }}">
-            {% elif loop.index == 2 %}
-            <img src="https://images.unsplash.com/photo-1600623471616-8c1966c91ff6?auto=format&fit=crop&w=900&q=80" alt="{{ tour.title }}">
-            {% else %}
-            <img src="https://images.unsplash.com/photo-1551867633-194f125bddfa?auto=format&fit=crop&w=900&q=80" alt="{{ tour.title }}">
-            {% endif %}
+            <img src="{{ tour.image }}" alt="{{ tour.title }}">
           </div>
           <div class="guide-tour-body">
             <h3>{{ tour.title }}</h3>
             <div class="guide-tour-meta">
-              <span>⌛ Duration: {{ "3 hours" if loop.first else "2 hours" }}</span>
-              <span>✣ Meeting point: {{ tour.meeting_point }}</span>
-              <span>👥 Max capacity: {{ tour.schedules[0].max_participants }}</span>
+              <span>{{ icon('duration') }} Duration: {% if tour.duration_minutes % 60 == 0 %}{{ tour.duration_minutes // 60 }} hours{% else
+                %}{{ tour.duration_minutes }} min{% endif %}</span>
+              <span>{{ icon('pin') }} Meeting point: {{ tour.meeting_point }}</span>
+              <span>{{ icon('users') }} Max capacity: {{ tour.max_participants }}</span>
+              <span>{{ icon('language') }} Languages: {{ tour.languages }}</span>
             </div>
             <div class="guide-tour-chips">
-              <span>Historical</span>
-              <span>Architectural</span>
-              <span>Local legends</span>
-              <span>Traditions</span>
-              <span>More...</span>
+              {% for theme in tour.themes %}
+              {% if loop.index <= 4 %} <span>{{ theme }}</span>
+                {% elif loop.index == 5 %}
+                <span class="guide-theme-more" title="{{ tour.themes[4:] | join(', ') }}">+{{ tour.themes|length - 4 }}
+                  more</span>
+                {% endif %}
+                {% endfor %}
             </div>
-            <button
-              class="guide-dark-button"
-              type="button"
-              data-guide-tour-details
-              data-tour-title="{{ tour.title }}"
-              data-tour-status="{{ tour.status }}"
-              data-tour-languages="{{ tour.languages }}"
-              data-tour-meeting="{{ tour.meeting_point }}"
-              data-tour-expected="{{ total_expected.value }}"
-              data-tour-max="{{ tour.schedules[0].max_participants }}"
-              data-tour-duration="{{ '180' if loop.first else '120' }}"
+            <button class="guide-dark-button" type="button" data-guide-tour-details data-tour-slug="{{ tour.slug }}"
+              data-tour-title="{{ tour.title }}" data-tour-status="{{ tour.status }}"
+              data-tour-languages="{{ tour.languages }}" data-tour-meeting="{{ tour.meeting_point }}"
+              data-tour-expected="{{ total_expected.value }}" data-tour-max="{{ tour.max_participants }}"
+              data-tour-duration="{{ tour.duration_minutes }}"
               data-tour-locked="{{ 'true' if total_expected.value > 0 else 'false' }}"
-            >More Details</button>
+              data-tour-description="{{ tour.description }}" data-tour-stops="{{ tour.stops|tojson|forceescape }}"
+              data-tour-themes="{{ tour.themes|tojson|forceescape }}"
+              data-tour-accessibility="{{ tour.accessibility|tojson|forceescape }}"
+              data-tour-weekly-schedules="{{ tour.weekly_schedules|tojson|forceescape }}"
+              data-tour-photos="{{ tour.photos|tojson|forceescape }}">More Details</button>
           </div>
         </article>
         {% endfor %}
@@ -133,9 +168,9 @@
           {% for tour in guide.tours %}
           {% set booked_count = namespace(value=0) %}
           {% for schedule in tour.schedules %}
-            {% if schedule.expected > 0 %}
-              {% set booked_count.value = booked_count.value + 1 %}
-            {% endif %}
+          {% if schedule.expected > 0 and not schedule.finished %}
+          {% set booked_count.value = booked_count.value + 1 %}
+          {% endif %}
           {% endfor %}
           {% if booked_count.value > 0 %}
           <article class="guide-ledger-card">
@@ -144,25 +179,31 @@
               <p>Booked dates: <strong>{{ booked_count.value }}</strong></p>
             </header>
             {% for schedule in tour.schedules %}
-            {% if schedule.expected > 0 %}
+            {% if schedule.expected > 0 and not schedule.finished %}
             <article class="guide-schedule-row-v2">
               <div>
                 <h4>{{ schedule.date }}</h4>
-                <p>🕒 {{ schedule.time }} | 🗣 {{ schedule.language }}</p>
+                <p>{{ icon('clock') }} {{ schedule.time }} <span class="meta-sep">|</span> {{ icon('language') }} {{ schedule.language }}</p>
               </div>
-              <div>
-                <span>Expected Participants</span>
-                <strong>{{ schedule.expected }}/{{ schedule.max_participants }}</strong>
+              <div class="guide-schedule-right-group">
+                <div class="guide-expected-inline">
+                  <span>Expected Participants</span>
+                  <strong>{{ schedule.expected }}/{{ schedule.max_participants }}</strong>
+                </div>
+                <div class="guide-schedule-actions">
+                  <button class="guide-dark-button" type="button" data-guide-reservations
+                    data-reservation-title="{{ tour.title }}"
+                    data-reservation-date="{{ schedule.date }} at {{ schedule.time }}"
+                    data-reservation-expected="{{ schedule.expected }}"
+                    data-reservation-groups="{{ schedule.reserved_groups }}"
+                    data-reservation-list="{{ schedule.reservations|tojson|forceescape }}">View Participants</button>
+                  {% if schedule.can_mark_done %}
+                  <button class="guide-dark-button mark-as-done-btn" type="button" data-mark-as-done data-occurrence-id="{{ schedule.occurrence_id }}">Mark as done</button>
+                  {% else %}
+                  <button class="guide-dark-button" type="button" disabled title="Available once the tour has started">Upcoming</button>
+                  {% endif %}
+                </div>
               </div>
-              <button
-                class="guide-dark-button"
-                type="button"
-                data-guide-reservations
-                data-reservation-title="{{ tour.title }}"
-                data-reservation-date="{{ schedule.date }} at {{ schedule.time }}"
-                data-reservation-expected="{{ schedule.expected }}"
-                data-reservation-groups="{{ schedule.reserved_groups }}"
-              >More Details</button>
             </article>
             {% endif %}
             {% endfor %}
@@ -179,20 +220,74 @@
         <p>Declare actual attendance and upload one evidence photo for completed tours with reservations.</p>
       </header>
       <div class="guide-pending-reports">
+        {% for report in guide.pending_reports %}
         <article>
           <span>Filing Required</span>
-          <h3>Complete Prague Free Tour</h3>
-          <p><strong>Date Run:</strong> Fri, June 19, 2026 @ 02:00 PM</p>
-          <p><strong>Language:</strong> Italian | <strong>Booked expected seats:</strong> 5</p>
-          <button class="guide-orange-button" type="button" data-guide-report data-report-title="Complete Prague Free Tour" data-report-date="Fri, June 19, 2026 at 02:00 PM" data-report-expected="5">File Report Declaring Attendance</button>
+          <h3>{{ report.title }}</h3>
+          <p><strong>Date Run:</strong> {{ report.date }}</p>
+          <p><strong>Language:</strong> {{ report.language }} | <strong>Booked expected seats:</strong> {{
+            report.expected }}</p>
+          <button class="guide-orange-button" type="button" data-guide-report
+            data-report-occurrence="{{ report.occurrence_id }}" data-report-title="{{ report.title }}"
+            data-report-date="{{ report.date }}" data-report-expected="{{ report.expected }}">File Report Declaring
+            Attendance</button>
         </article>
-        <article>
-          <span>Filing Required</span>
-          <h3>Prague Castle Morning Walk</h3>
-          <p><strong>Date Run:</strong> Mon, June 15, 2026 @ 01:00 PM</p>
-          <p><strong>Language:</strong> German | <strong>Booked expected seats:</strong> 4</p>
-          <button class="guide-orange-button" type="button" data-guide-report data-report-title="Prague Castle Morning Walk" data-report-date="Mon, June 15, 2026 at 01:00 PM" data-report-expected="4">File Report Declaring Attendance</button>
-        </article>
+        {% else %}
+        <p class="guide-empty-state guide-empty-state--full">No pending reports at this time.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="guide-ops-section" id="guide-tours-history">
+      <header class="guide-section-heading">
+        <h2>Tours History</h2>
+        <p>A record of the tours you have marked as done from your timetable.</p>
+      </header>
+      <div class="guide-timetable-layout">
+        <div class="guide-ledger-stack">
+          {% if not guide.tours_history %}
+          <p class="guide-empty-state guide-empty-state--full">No tours marked as done yet.</p>
+          {% else %}
+          {% for tour in guide.tours %}
+          {% set done_count = namespace(value=0) %}
+          {% for schedule in tour.schedules %}
+          {% if schedule.finished %}{% set done_count.value = done_count.value + 1 %}{% endif %}
+          {% endfor %}
+          {% if done_count.value > 0 %}
+          <article class="guide-ledger-card">
+            <header>
+              <h3>{{ tour.title }}</h3>
+              <p>Completed dates: <strong>{{ done_count.value }}</strong></p>
+            </header>
+            {% for schedule in tour.schedules %}
+            {% if schedule.finished %}
+            <article class="guide-schedule-row-v2">
+              <div>
+                <h4>{{ schedule.date }}</h4>
+                <p>{{ icon('clock') }} {{ schedule.time }} <span class="meta-sep">|</span> {{ icon('language') }} {{ schedule.language }}</p>
+              </div>
+              <div class="guide-schedule-right-group">
+                <div class="guide-expected-inline">
+                  <span>Participants present</span>
+                  <strong>{{ schedule.expected }}/{{ schedule.max_participants }}</strong>
+                </div>
+                <div class="guide-schedule-actions">
+                  <button class="guide-dark-button" type="button" data-guide-reservations
+                    data-reservation-title="{{ tour.title }}"
+                    data-reservation-date="{{ schedule.date }} at {{ schedule.time }}"
+                    data-reservation-expected="{{ schedule.expected }}"
+                    data-reservation-groups="{{ schedule.reserved_groups }}"
+                    data-reservation-list="{{ schedule.reservations|tojson|forceescape }}">View Participants</button>
+                </div>
+              </div>
+            </article>
+            {% endif %}
+            {% endfor %}
+          </article>
+          {% endif %}
+          {% endfor %}
+          {% endif %}
+        </div>
       </div>
     </section>
 
@@ -202,22 +297,21 @@
         <p>Certified attendance reports already reviewed by the platform audit team.</p>
       </header>
       <div class="guide-past-report-list">
+        {% for report in guide.past_reports %}
         <article>
-          <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1400&q=80" alt="Tour group evidence">
-          <h3>Complete Prague Free Tour</h3>
-          <p><strong>Executed Date:</strong> Thu, June 18, 2026 @ 10:00 AM</p>
-          <p><strong>Declared Attendance:</strong> 12 participants (Expected bookings were 14)</p>
-          <strong class="certified-label">✓ Certified</strong>
+          <img
+            src="{{ report.evidence_photo if report.evidence_photo.startswith('http') else url_for('static', filename=report.evidence_photo) }}"
+            alt="Tour group evidence">
+          <h3>{{ report.title }}</h3>
+          <p><strong>Executed Date:</strong> {{ report.date }}</p>
+          <p><strong>Declared Attendance:</strong> {{ report.actual }} participants (Expected bookings were {{
+            report.expected }})</p>
+          <strong class="certified-label">{{ icon('check') }} {{ report.status | title }}</strong>
           <span>Audit Verified</span>
         </article>
-        <article>
-          <img src="https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=1400&q=80" alt="Walking tour evidence">
-          <h3>Prague Castle Morning Walk</h3>
-          <p><strong>Executed Date:</strong> Wed, June 17, 2026 @ 11:00 AM</p>
-          <p><strong>Declared Attendance:</strong> 9 participants (Expected bookings were 9)</p>
-          <strong class="certified-label">✓ Certified</strong>
-          <span>Audit Verified</span>
-        </article>
+        {% else %}
+        <p class="guide-empty-state guide-empty-state--full">No past reports history.</p>
+        {% endfor %}
       </div>
     </section>
   </main>
@@ -236,33 +330,41 @@
   </div>
 
   <div class="guide-ops-modal" data-guide-report-modal aria-hidden="true">
-    <form class="guide-ops-dialog guide-report-dialog" role="dialog" aria-modal="true" aria-labelledby="guide-report-title">
+    <form class="guide-ops-dialog guide-report-dialog" role="dialog" aria-modal="true"
+      aria-labelledby="guide-report-title" data-guide-report-form enctype="multipart/form-data">
       <header>
         <h2 id="guide-report-title" data-guide-report-title>Report Attendance</h2>
         <p data-guide-report-date>Occurrence</p>
       </header>
       <div class="guide-report-body">
+        <input type="hidden" name="occurrence_id" data-guide-report-occurrence>
         <label>
           <span>Declared Actual Attendees</span>
-          <input type="number" min="0" value="1">
+          <input type="number" name="actual_participants" min="0" value="1" required data-guide-report-actual>
         </label>
         <p>Expected participant booked seats count: <strong data-guide-report-expected>5</strong></p>
-        <label class="guide-upload-box">
+        <label class="guide-upload-box" data-guide-report-upload>
           <span>Evidence Photo Upload</span>
-          <input type="file" accept="image/*">
-          <strong>📸</strong>
-          <em>Drag and drop or click here to choose group evidence photo</em>
+          <input type="file" name="evidence_photo" accept="image/*" data-guide-report-photo>
+          <strong>{{ icon('camera') }}</strong>
+          <em data-guide-report-photo-note>Drag and drop or click here to choose group evidence photo</em>
         </label>
+        <p class="guide-report-hint" data-guide-report-hint>A photo is required when at least one participant attended.
+          If nobody showed up, set attendees to 0 — no photo is needed and the report is cleared.</p>
       </div>
       <footer>
+        <p data-guide-report-message aria-live="polite"></p>
         <button class="guide-muted-button" type="button" data-guide-report-close>Cancel</button>
-        <button class="guide-orange-button compact" type="button">Apply</button>
+        <button class="guide-orange-button compact" type="submit" data-guide-report-submit>Apply</button>
       </footer>
     </form>
   </div>
 
-  <div class="guide-ops-modal" data-add-tour-modal aria-hidden="true">
-    <form class="guide-ops-dialog guide-add-tour-dialog" role="dialog" aria-modal="true" aria-labelledby="add-tour-title">
+  <div class="guide-ops-modal" data-add-tour-modal aria-hidden="true"
+    data-existing-schedules="{{ guide.existing_schedules|tojson|forceescape }}">
+    <form class="guide-ops-dialog guide-add-tour-dialog" role="dialog" aria-modal="true"
+      aria-labelledby="add-tour-title" action="{{ url_for('guide_tour_create') }}" method="post"
+      enctype="multipart/form-data">
       <header>
         <div>
           <h2 id="add-tour-title" data-add-tour-title>Add Tour</h2>
@@ -276,15 +378,38 @@
           <span class="guide-form-step">1</span>
           <label>
             <strong>Title of the tour</strong>
-            <input type="text" name="tour_title" placeholder="Complete Prague Free Tour" required>
+            <input type="text" name="tour_title" required>
           </label>
         </section>
 
         <section class="guide-form-section">
           <span class="guide-form-step">2</span>
+          <div class="guide-form-row">
+            <label class="guide-form-col">
+              <strong>Meeting point</strong>
+              <input type="text" name="meeting_point" required>
+            </label>
+            <label class="guide-form-col">
+              <strong>Tour Duration</strong>
+              <select name="tour_duration" required>
+                <option value="60">60 min</option>
+                <option value="90">90 min</option>
+                <option value="120">120 min</option>
+                <option value="150">150 min</option>
+                <option value="180">180 min</option>
+                <option value="210">210 min</option>
+                <option value="240">240 min</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="guide-form-section">
+          <span class="guide-form-step">3</span>
           <div class="guide-form-copy">
-            <strong>Weekly schedule, language, and duration</strong>
-            <p>Schedules for the same guide cannot overlap. The same tour may run more than once on the same day only when the times do not overlap and the language is different.</p>
+            <strong>Weekly Schedule and Language</strong>
+            <p>Schedules for the same guide cannot overlap. The same tour may run more than once on the same day only
+              when the times do not overlap and the language is different.</p>
           </div>
           <div class="guide-schedule-builder" data-schedule-builder>
             <article class="guide-schedule-edit-row">
@@ -305,28 +430,17 @@
                 <input type="time" name="schedule_time[]" value="09:00" required>
               </label>
               <label>
-                <span>Duration</span>
-                <select name="schedule_duration[]" required>
-                  <option value="90">90 min</option>
-                  <option value="120">120 min</option>
-                  <option value="150">150 min</option>
-                  <option value="180">180 min</option>
-                  <option value="210">210 min</option>
-                  <option value="240">240 min</option>
-                </select>
-              </label>
-              <label>
                 <span>Language</span>
                 <select name="schedule_language[]" required>
                   <option>English</option>
                   <option>Spanish</option>
                   <option>German</option>
-                  <option>French</option>
                   <option>Italian</option>
                   <option>Portuguese</option>
                 </select>
               </label>
-              <button type="button" class="guide-row-remove" data-remove-schedule aria-label="Remove schedule row">×</button>
+              <button type="button" class="guide-row-remove" data-remove-schedule
+                aria-label="Remove schedule row">×</button>
             </article>
           </div>
           <div class="guide-schedule-actions">
@@ -336,7 +450,7 @@
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">3</span>
+          <span class="guide-form-step">4</span>
           <label>
             <strong>Maximum number of people</strong>
             <input type="number" name="max_people" min="1" max="50" value="15" required>
@@ -344,7 +458,7 @@
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">4</span>
+          <span class="guide-form-step">5</span>
           <div class="guide-form-copy">
             <strong>Tour themes</strong>
             <p>Select at least one theme.</p>
@@ -359,21 +473,22 @@
             <label><input type="checkbox" name="themes" value="Musical"> Musical</label>
             <label><input type="checkbox" name="themes" value="Political"> Political</label>
             <label><input type="checkbox" name="themes" value="Alternative"> Alternative</label>
-            <label><input type="checkbox" name="themes" value="Local legends and traditions"> Local legends & traditions</label>
+            <label><input type="checkbox" name="themes" value="Local legends and traditions"> Local legends &
+              traditions</label>
           </div>
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">5</span>
+          <span class="guide-form-step">6</span>
           <div class="guide-form-copy">
             <strong>Tour stops</strong>
             <p>Add at least 4 stops.</p>
           </div>
           <div class="guide-stops-builder" data-stops-builder>
-            <input type="text" name="stops[]" placeholder="Old Town Square" required>
-            <input type="text" name="stops[]" placeholder="Astronomical Clock" required>
-            <input type="text" name="stops[]" placeholder="Church of Our Lady before Tyn" required>
-            <input type="text" name="stops[]" placeholder="Charles Bridge" required>
+            <input type="text" name="stops[]" required>
+            <input type="text" name="stops[]" required>
+            <input type="text" name="stops[]" required>
+            <input type="text" name="stops[]" required>
           </div>
           <div class="guide-stop-actions">
             <button class="guide-muted-button" type="button" data-add-stop>Add stop</button>
@@ -382,34 +497,39 @@
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">6</span>
+          <span class="guide-form-step">7</span>
           <div class="guide-form-copy">
             <strong>Accessibility</strong>
             <p>Select the options that apply.</p>
           </div>
           <div class="guide-option-scroll compact" data-required-group="accessibility">
-            <label><input type="checkbox" name="accessibility" value="Wheelchair accessible"> Wheelchair accessible</label>
-            <label><input type="checkbox" name="accessibility" value="Suitable for children"> Suitable for children</label>
+            <label><input type="checkbox" name="accessibility" value="Wheelchair accessible"> Wheelchair
+              accessible</label>
+            <label><input type="checkbox" name="accessibility" value="Suitable for children"> Suitable for
+              children</label>
             <label><input type="checkbox" name="accessibility" value="Pet friendly"> Pet friendly</label>
           </div>
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">7</span>
+          <span class="guide-form-step">8</span>
           <label>
             <strong>Brief description of the tour</strong>
-            <textarea name="brief_description" rows="4" placeholder="Describe the route, story, and experience visitors can expect." required></textarea>
+            <textarea name="brief_description" rows="4" required></textarea>
           </label>
         </section>
 
         <section class="guide-form-section">
-          <span class="guide-form-step">8</span>
-          <label class="guide-photo-upload">
+          <span class="guide-form-step">9</span>
+          <div class="guide-photo-upload">
             <strong>Tour photos</strong>
-            <input type="file" name="tour_photos" accept="image/*" multiple required data-tour-photos>
-            <span>Upload minimum 5 photos</span>
+            <div class="guide-existing-photos" data-existing-photos></div>
+            <label class="guide-photo-add">
+              <input type="file" name="tour_photos" accept="image/*" multiple data-tour-photos>
+              <span>A tour must have exactly 5 photos — delete any above, then add replacements.</span>
+            </label>
             <em data-photo-count>No photos selected</em>
-          </label>
+          </div>
         </section>
       </div>
 
@@ -424,4 +544,5 @@
 
   {% include "_footer.html" %}
 </body>
+
 </html>

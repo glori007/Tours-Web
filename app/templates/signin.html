@@ -34,28 +34,40 @@
     </aside>
 
     <section class="auth-form-panel" aria-labelledby="signin-title">
-      <form class="auth-form" action="#" method="post" data-auth-form>
+      {# Server-side flash messages #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="auth-alert auth-alert--{{ category }}" role="alert" id="flash-msg">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {# The form now POSTs to the real sign-in endpoint #}
+      <form class="auth-form" action="{{ url_for('signin') }}" method="post" novalidate data-auth-form>
         <header>
           <h2 id="signin-title">Sign in</h2>
           <p data-auth-subtitle>Welcome back to Walk Prague</p>
         </header>
 
         <div class="role-tabs" role="tablist" aria-label="Account type">
-          <button class="is-active" type="button" role="tab" aria-selected="true" data-auth-role="participant">Participant</button>
-          <button type="button" role="tab" aria-selected="false" data-auth-role="guide">Guide</button>
+          <button class="{% if form_role == 'participant' or not form_role %}is-active{% endif %}" type="button" role="tab" aria-selected="{{ 'true' if (form_role == 'participant' or not form_role) else 'false' }}" data-auth-role="participant">Participant</button>
+          <button class="{% if form_role == 'guide' %}is-active{% endif %}" type="button" role="tab" aria-selected="{{ 'true' if form_role == 'guide' else 'false' }}" data-auth-role="guide">Guide</button>
         </div>
 
-        <input type="hidden" name="role" value="participant" data-auth-role-input>
+        <input type="hidden" name="role" value="{{ form_role or 'participant' }}" data-auth-role-input>
 
         <label class="auth-field">
           <span>Email address</span>
-          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+          <input type="email" name="email" id="signin-email" placeholder="you@example.com"
+                 autocomplete="email" required value="{{ form_email or '' }}">
         </label>
 
         <label class="auth-field">
           <span>Password</span>
           <span class="password-wrap">
-            <input type="password" name="password" placeholder="Your password" autocomplete="current-password" required data-password-input>
+            <input type="password" name="password" id="signin-password"
+                   placeholder="Your password" autocomplete="current-password" required data-password-input>
             <button type="button" aria-label="Show password" data-toggle-password>Show</button>
           </span>
         </label>
@@ -64,7 +76,7 @@
           <a href="#forgot-password">Forgot password?</a>
         </div>
 
-        <button class="auth-submit" type="submit" data-auth-submit>Sign In as Participant</button>
+        <button class="auth-submit" type="submit" id="signin-submit" data-auth-submit>Sign In as Participant</button>
 
         <p class="auth-create">New to Walk Prague? <a href="{{ url_for('register') }}" data-role-target="register">Create a free account</a></p>
 

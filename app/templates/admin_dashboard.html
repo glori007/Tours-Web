@@ -9,14 +9,14 @@
 </head>
 <body class="admin-dashboard-body">
   <header class="admin-topbar">
-    <a class="brand admin-brand" href="{{ url_for('index') }}" aria-label="Walk Prague home">
+    <span class="brand admin-brand brand-static" aria-label="Walk Prague">
       <img class="brand-logo" src="{{ url_for('static', filename='img/walk-prague-logo.svg') }}" alt="">
       <span>Walk Prague</span>
       <strong>Admin</strong>
-    </a>
+    </span>
     <div class="admin-account">
-      <span class="admin-account-name">Platform Administrator</span>
-      <a class="admin-logout" href="{{ url_for('signin') }}">Logout</a>
+      <span class="admin-account-name">{{ current_user.first_name ~ ' ' ~ current_user.last_name if current_user.is_authenticated else 'Administrator' }}</span>
+      <a class="admin-logout" href="{{ url_for('logout') }}">Logout</a>
     </div>
   </header>
 
@@ -64,9 +64,9 @@
               {% endfor %}
             </div>
             <aside class="admin-reservation-total">
-              <strong>318</strong>
+              <strong>{{ admin.active_reservation_count }}</strong>
               <span>Total Reservations</span>
-              <p>Across 6 languages and 14 active tours</p>
+              <p>Across {{ admin.language_count }} language{{ '' if admin.language_count == 1 else 's' }} and {{ admin.tour_count }} active tours</p>
             </aside>
           </div>
         </section>
@@ -76,11 +76,7 @@
     <section id="admin-guides" class="admin-page-section">
       <article class="admin-card admin-list-card">
         <header class="admin-card-head">
-          <h2>Registered Guides (11)</h2>
-          <label class="admin-search">
-            <span class="sr-only">Search guides</span>
-            <input type="search" placeholder="Search guides..." data-admin-guide-search>
-          </label>
+          <h2>Registered Guides ({{ admin.guide_count }})</h2>
         </header>
 
         <div class="admin-guide-list">
@@ -127,20 +123,10 @@
     <section id="admin-tours" class="admin-page-section">
       <article class="admin-card admin-table-card">
         <header class="admin-card-head">
-          <h2>All Tours (14)</h2>
-          <label class="admin-select">
-            <span class="sr-only">Filter tours by language</span>
-            <select data-admin-language-filter>
-              <option value="all">All languages</option>
-              <option value="EN">English</option>
-              <option value="DE">German</option>
-              <option value="ES">Spanish</option>
-              <option value="FR">French</option>
-            </select>
-          </label>
+          <h2>All Tours ({{ admin.tour_count }})</h2>
         </header>
 
-        <div class="admin-table-wrap">
+        <div class="admin-table-wrap admin-scroll">
           <table class="admin-table">
             <thead>
               <tr>
@@ -168,11 +154,11 @@
     <section id="admin-reservations" class="admin-page-section">
       <article class="admin-card admin-table-card">
         <header class="admin-card-head">
-          <h2>Reservations (318)</h2>
-          <p>Recent platform booking activity</p>
+          <h2>Reservations ({{ admin.reservation_count }})</h2>
+          <p>All platform booking activity (past and upcoming)</p>
         </header>
 
-        <div class="admin-table-wrap">
+        <div class="admin-table-wrap admin-scroll">
           <table class="admin-table">
             <thead>
               <tr>
@@ -211,7 +197,7 @@
         <section>
           <h2 id="admin-guide-modal-title" data-guide-modal-name>Guide name</h2>
           <p class="admin-guide-modal-email" data-guide-modal-email>guide@email.cz</p>
-          <p class="admin-guide-modal-subtitle">Local guide since 2018 · Verified Walk Prague profile</p>
+          <p class="admin-guide-modal-subtitle">Verified Walk Prague profile</p>
           <p class="guide-stars"><span data-guide-modal-rating>9.6/10</span> <em data-guide-modal-reviews>based on 124 reviews</em></p>
           <div class="guide-languages" data-guide-modal-languages></div>
         </section>

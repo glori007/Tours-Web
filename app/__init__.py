@@ -1,373 +1,296 @@
 import json
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 
 from .backend import (
     admin_dashboard_data,
+    authenticate_user,
     cancel_reservation,
     create_guide_report,
+    create_guide_tour,
     create_reservation,
     get_public_tours,
     get_tour_detail,
+    participant_has_active_tour_booking,
+    get_user_by_id,
     guide_dashboard_data,
     init_backend,
+    mark_occurrence_done,
     participant_dashboard_data,
+    register_user,
+    update_guide_tour,
 )
-
-
-TOURS = {
-    "complete-prague-free-tour": {
-        "slug": "complete-prague-free-tour",
-        "title": "Complete Prague Free Tour",
-        "provider": "I Love Praag",
-        "guide": "Tomas Novak",
-        "rating": "9.1",
-        "reviews": "1034",
-        "duration": "3 hours",
-        "meeting_point": "Metrostation Malostranska",
-        "languages": "English, French, Spanish, Portuguese, Italian, German",
-        "guide_email": "tomas.novak@email.cz",
-        "image": "img/tours/free-walking-tour-prague-old-town-castle-02.webp",
-        "gallery": [
-            "img/tours/free-walking-tour-prague-old-town-castle-02.webp",
-            "img/tours/free-walking-tour-prague-old-town-castle-03.webp",
-            "img/tours/free-walking-tour-prague-old-town-castle-01.jpg",
-            "img/tours/free-walking-tour-prague-old-town-castle-08.jpg",
-            "img/tours/free-walking-tour-prague-old-town-castle-06.webp",
-        ],
-    },
-    "original-free-tour-prague": {
-        "slug": "original-free-tour-prague",
-        "title": "The Original Free Tour of Prague",
-        "provider": "Walk Prague",
-        "guide": "Eva Horakova",
-        "rating": "9.2",
-        "reviews": "28047",
-        "duration": "2h 30min",
-        "meeting_point": "Old Town Square",
-        "languages": "English, Spanish",
-        "guide_email": "eva.horakova@email.cz",
-        "image": "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=1600&q=80",
-    },
-    "castle-district-hidden-courtyards": {
-        "slug": "castle-district-hidden-courtyards",
-        "title": "Castle District & Hidden Courtyards",
-        "provider": "Walk Prague",
-        "guide": "Tomas Dvorak",
-        "rating": "8.4",
-        "reviews": "842",
-        "duration": "2 hours",
-        "meeting_point": "Hradcanske Square",
-        "languages": "German, English, French",
-        "guide_email": "tomas.dvorak@email.cz",
-        "image": "https://images.unsplash.com/photo-1600623471616-8c1966c91ff6?auto=format&fit=crop&w=1600&q=80",
-    },
-    "ghost-legends-alchemy-night-walk": {
-        "slug": "ghost-legends-alchemy-night-walk",
-        "title": "Ghost Legends & Alchemy Night Walk",
-        "provider": "Walk Prague",
-        "guide": "Klara Vesela",
-        "rating": "9.1",
-        "reviews": "612",
-        "duration": "90 min",
-        "meeting_point": "Old Town Bridge Tower",
-        "languages": "English, German",
-        "guide_email": "klara.vesela@email.cz",
-        "image": "https://images.unsplash.com/photo-1551867633-194f125bddfa?auto=format&fit=crop&w=1600&q=80",
-    },
-    "beer-markets-czech-bites": {
-        "slug": "beer-markets-czech-bites",
-        "title": "Beer, Markets & Czech Bites",
-        "provider": "Walk Prague",
-        "guide": "Mateo Costa",
-        "rating": "8.6",
-        "reviews": "438",
-        "duration": "2 hours",
-        "meeting_point": "Namesti Republiky",
-        "languages": "English, Portuguese, Italian",
-        "guide_email": "mateo.costa@email.cz",
-        "image": "https://images.unsplash.com/photo-1574094985345-fc6a821b96da?auto=format&fit=crop&w=1600&q=80",
-    },
-    "art-nouveau-architecture-route": {
-        "slug": "art-nouveau-architecture-route",
-        "title": "Art Nouveau & Architecture Route",
-        "provider": "Walk Prague",
-        "guide": "Sofia Laurent",
-        "rating": "9.0",
-        "reviews": "719",
-        "duration": "2h 15min",
-        "meeting_point": "Municipal House",
-        "languages": "French, English, Spanish",
-        "guide_email": "sofia.laurent@email.cz",
-        "image": "https://images.unsplash.com/photo-1562624475-96c2bc08fab9?auto=format&fit=crop&w=1600&q=80",
-    },
-}
-
-
-GUIDE_DASHBOARD = {
-    "name": "Tomas Novak",
-    "email": "tomas.novak@walkprague.cz",
-    "rating": "9.6/10",
-    "active_tours": 3,
-    "expected_participants": 42,
-    "pending_reports": 2,
-    "tours": [
-        {
-            "title": "Complete Prague Free Tour",
-            "slug": "complete-prague-free-tour",
-            "status": "Active",
-            "languages": "English, Spanish, Italian, Portuguese",
-            "meeting_point": "Metrostation Malostranska",
-            "schedules": [
-                {
-                    "date": "Fri, June 19, 2026",
-                    "time": "2:00 PM",
-                    "language": "Italian",
-                    "reserved_groups": 4,
-                    "expected": 7,
-                    "max_participants": 15,
-                    "state": "upcoming",
-                    "reservations": [
-                        {"name": "Ana Kovac", "people": 2, "email": "ana@example.com"},
-                        {"name": "Luca Bianchi", "people": 1, "email": "luca@example.com"},
-                        {"name": "Nina Ferri", "people": 3, "email": "nina@example.com"},
-                        {"name": "Marco Conti", "people": 1, "email": "marco@example.com"},
-                    ],
-                },
-                {
-                    "date": "Mon, June 22, 2026",
-                    "time": "9:00 AM",
-                    "language": "English",
-                    "reserved_groups": 5,
-                    "expected": 9,
-                    "max_participants": 15,
-                    "state": "upcoming",
-                    "reservations": [
-                        {"name": "Sara Miller", "people": 2, "email": "sara@example.com"},
-                        {"name": "Ben Carter", "people": 1, "email": "ben@example.com"},
-                        {"name": "Julia Stone", "people": 2, "email": "julia@example.com"},
-                        {"name": "Ethan Brooks", "people": 3, "email": "ethan@example.com"},
-                        {"name": "Maya Chen", "people": 1, "email": "maya@example.com"},
-                    ],
-                },
-                {
-                    "date": "Wed, June 17, 2026",
-                    "time": "10:00 AM",
-                    "language": "English",
-                    "reserved_groups": 3,
-                    "expected": 6,
-                    "max_participants": 15,
-                    "state": "completed",
-                    "reservations": [
-                        {"name": "Carlos Wei", "people": 2, "email": "carlos@example.com"},
-                        {"name": "Paulette Barnard", "people": 1, "email": "paulette@example.com"},
-                        {"name": "Orit Cohen", "people": 3, "email": "orit@example.com"},
-                    ],
-                },
-            ],
-        },
-        {
-            "title": "Prague Castle Morning Walk",
-            "slug": "castle-district-hidden-courtyards",
-            "status": "Draft review",
-            "languages": "English, German",
-            "meeting_point": "Hradcanske Square",
-            "schedules": [
-                {
-                    "date": "Thu, June 18, 2026",
-                    "time": "11:00 AM",
-                    "language": "German",
-                    "reserved_groups": 2,
-                    "expected": 4,
-                    "max_participants": 12,
-                    "state": "completed",
-                    "reservations": [
-                        {"name": "Lea Wagner", "people": 2, "email": "lea@example.com"},
-                        {"name": "Jonas Klein", "people": 2, "email": "jonas@example.com"},
-                    ],
-                },
-                {
-                    "date": "Sat, June 27, 2026",
-                    "time": "3:30 PM",
-                    "language": "English",
-                    "reserved_groups": 0,
-                    "expected": 0,
-                    "max_participants": 12,
-                    "state": "upcoming",
-                    "reservations": [],
-                },
-            ],
-        },
-        {
-            "title": "Legends of Old Prague",
-            "slug": "ghost-legends-alchemy-night-walk",
-            "status": "Active",
-            "languages": "English",
-            "meeting_point": "Old Town Bridge Tower",
-            "schedules": [
-                {
-                    "date": "Sun, June 21, 2026",
-                    "time": "7:00 PM",
-                    "language": "English",
-                    "reserved_groups": 6,
-                    "expected": 13,
-                    "max_participants": 15,
-                    "state": "upcoming",
-                    "reservations": [
-                        {"name": "Laura Evans", "people": 2, "email": "laura@example.com"},
-                        {"name": "Daniel Kim", "people": 3, "email": "daniel@example.com"},
-                        {"name": "Marta Ruiz", "people": 1, "email": "marta@example.com"},
-                        {"name": "Peter Holm", "people": 2, "email": "peter@example.com"},
-                        {"name": "Olivia Smith", "people": 4, "email": "olivia@example.com"},
-                        {"name": "Noah Brown", "people": 1, "email": "noah@example.com"},
-                    ],
-                },
-            ],
-        },
-    ],
-}
-
-
-ADMIN_DASHBOARD = {
-    "last_updated": "June 9, 2026",
-    "stats": [
-        {"value": "11", "label": "Guides", "accent": "blue", "icon": "▣"},
-        {"value": "247", "label": "Participants", "accent": "green", "icon": "♙"},
-        {"value": "14", "label": "Tours", "accent": "purple", "icon": "◉"},
-        {"value": "318", "label": "Reservations", "accent": "orange", "icon": "✓"},
-        {"value": "4.2k", "label": "Total walkers", "accent": "red", "icon": "☑"},
-        {"value": "203", "label": "Reports filed", "accent": "cyan", "icon": "▤"},
-    ],
-    "languages": [
-        {"name": "English", "flag": "🇬🇧", "count": 142, "accent": "blue", "percent": 86},
-        {"name": "German", "flag": "🇩🇪", "count": 97, "accent": "green", "percent": 58},
-        {"name": "Spanish", "flag": "🇪🇸", "count": 63, "accent": "purple", "percent": 35},
-        {"name": "French", "flag": "🇫🇷", "count": 39, "accent": "orange", "percent": 22},
-        {"name": "Portuguese", "flag": "🇵🇹", "count": 28, "accent": "cyan", "percent": 16},
-    ],
-    "guides": [
-        {"name": "Tomáš Novák", "email": "tomas.novak@email.cz", "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80", "initial": "T", "color": "blue", "languages": "🇬🇧 EN  🇩🇪 DE", "language_names": "English, German", "tours": 3, "bookings": 67, "rating": "9.6/10", "reviews": 124, "guests": "1,840", "specialty": "History"},
-        {"name": "Karolína Dvořák", "email": "karolina.dvorak@email.cz", "avatar": "", "initial": "K", "color": "green", "languages": "🇬🇧 EN  🇫🇷 FR  🇨🇿 CZ", "language_names": "English, French, Czech", "tours": 2, "bookings": 41, "rating": "9.3/10", "reviews": 88, "guests": "920", "specialty": "Castle District"},
-        {"name": "Martin Procházka", "email": "martin.prochazka@email.cz", "avatar": "", "initial": "M", "color": "purple", "languages": "🇩🇪 DE  🇪🇸 ES", "language_names": "German, Spanish", "tours": 4, "bookings": 112, "rating": "9.1/10", "reviews": 147, "guests": "2,130", "specialty": "Jewish Quarter"},
-        {"name": "Lucie Kratochvílová", "email": "lucie.k@email.cz", "avatar": "", "initial": "L", "color": "orange", "languages": "🇬🇧 EN  🇮🇹 IT  🇨🇿 CZ", "language_names": "English, Italian, Czech", "tours": 1, "bookings": 18, "rating": "8.9/10", "reviews": 52, "guests": "440", "specialty": "Communist Era"},
-    ],
-    "tours": [
-        {"title": "Old Town & Astronomical Clock Walk", "slug": "complete-prague-free-tour", "guide": "Tomáš Novák", "language": "EN", "duration": "120 min", "max": 15, "reservations": 67},
-        {"title": "Charles Bridge & Lesser Town Secrets", "slug": "original-free-tour-prague", "guide": "Tomáš Novák", "language": "DE", "duration": "90 min", "max": 12, "reservations": 0},
-        {"title": "Prague Castle & Hradčany District", "slug": "castle-district-hidden-courtyards", "guide": "Karolína Dvořák", "language": "EN", "duration": "150 min", "max": 10, "reservations": 41},
-        {"title": "Josefov: Prague's Jewish Quarter", "slug": "art-nouveau-architecture-route", "guide": "Martin Procházka", "language": "ES", "duration": "100 min", "max": 18, "reservations": 33},
-        {"title": "Velvet Revolution & Communist Prague", "slug": "ghost-legends-alchemy-night-walk", "guide": "Lucie Kratochvílová", "language": "EN", "duration": "110 min", "max": 14, "reservations": 28},
-    ],
-    "reservations": [
-        {"participant": "Ana Kovac", "tour": "Old Town & Astronomical Clock Walk", "guide": "Tomáš Novák", "date": "Jun 19, 2026", "people": 2, "status": "Confirmed"},
-        {"participant": "Milan Ševčík", "tour": "Prague Castle & Hradčany District", "guide": "Karolína Dvořák", "date": "Jun 20, 2026", "people": 3, "status": "Confirmed"},
-        {"participant": "Elena Vítková", "tour": "Josefov: Prague's Jewish Quarter", "guide": "Martin Procházka", "date": "Jun 22, 2026", "people": 1, "status": "Cancelled"},
-        {"participant": "Lucas Müller", "tour": "Velvet Revolution & Communist Prague", "guide": "Lucie Kratochvílová", "date": "Jun 24, 2026", "people": 4, "status": "Confirmed"},
-    ],
-}
-
-
-PARTICIPANT_DASHBOARD = {
-    "name": "Anna",
-    "email": "anna.walker@email.com",
-    "reservations": [
-        {
-            "tour": "Complete Prague Free Tour",
-            "slug": "complete-prague-free-tour",
-            "date": "Mon, June 22, 2026",
-            "start_time": "9:00 AM",
-            "meeting_point": "Metrostation Malostranska",
-            "people": 3,
-            "additional_participants": ["Mira Walker", "Leo Walker"],
-            "language": "English",
-            "status": "Confirmed",
-            "can_cancel": True,
-            "cancel_note": "Cancellation available until Jun 21, 2026 at 9:00 AM",
-        },
-        {
-            "tour": "Ghost Legends & Alchemy Night Walk",
-            "slug": "ghost-legends-alchemy-night-walk",
-            "date": "Sun, June 21, 2026",
-            "start_time": "7:00 PM",
-            "meeting_point": "Old Town Bridge Tower",
-            "people": 2,
-            "additional_participants": ["Sara Klein"],
-            "language": "English",
-            "status": "Confirmed",
-            "can_cancel": True,
-            "cancel_note": "Cancellation available until Jun 20, 2026 at 7:00 PM",
-        },
-        {
-            "tour": "Old Town Evening Introduction",
-            "slug": "complete-prague-free-tour",
-            "date": "Sat, June 20, 2026",
-            "start_time": "8:00 PM",
-            "meeting_point": "Old Town Square",
-            "people": 1,
-            "additional_participants": [],
-            "language": "Spanish",
-            "status": "Locked",
-            "can_cancel": False,
-            "cancel_note": "Less than 24 hours before start time",
-        },
-    ],
-}
 
 
 def create_app():
     app = Flask(__name__)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+    # A secret key is mandatory for sessions and Flask-Login
+    app.config["SECRET_KEY"] = "walk-prague-secret-key-change-in-production"
+
+    # Initialise SQLite backend (schema + seed data)
     init_backend(app)
+
+    # -----------------------------------------------------------------------
+    # Flask-Login setup
+    # -----------------------------------------------------------------------
+    login_manager = LoginManager(app)
+    login_manager.login_view = "signin"          # redirect here when @login_required fails
+    login_manager.login_message = "Please sign in to access that page."
+    login_manager.login_message_category = "info"
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return get_user_by_id(user_id)
+
+    # -----------------------------------------------------------------------
+    # Public routes
+    # -----------------------------------------------------------------------
 
     @app.route("/")
     def index():
-        return render_template("index.html", participant_view=False, tours=get_public_tours())
-
-    @app.route("/participant-home")
-    def participant_home():
+        participant_view = current_user.is_authenticated and current_user.role == "participant"
+        participant = participant_dashboard_data(current_user.id) if participant_view else None
         return render_template(
             "index.html",
-            participant_view=True,
-            participant=participant_dashboard_data(),
+            participant_view=participant_view,
+            participant=participant,
             tours=get_public_tours(),
         )
 
+    @app.route("/participant-home")
+    @login_required
+    def participant_home():
+        if current_user.role != "participant":
+            flash("Access denied: that page is for participants only.", "error")
+            return _redirect_by_role(current_user.role)
+        return render_template(
+            "index.html",
+            participant_view=True,
+            participant=participant_dashboard_data(current_user.id),
+            tours=get_public_tours(),
+        )
+
+    # -----------------------------------------------------------------------
+    # Authentication routes
+    # -----------------------------------------------------------------------
+
     @app.route("/auth")
-    @app.route("/signin")
+    @app.route("/signin", methods=["GET", "POST"])
     def signin():
-        return render_template("signin.html")
+        # Already logged in → send to the right dashboard
+        if current_user.is_authenticated:
+            return _redirect_by_role(current_user.role)
 
-    @app.route("/register")
+        if request.method == "GET":
+            return render_template("signin.html")
+
+        # ---- POST: process sign-in ----
+        email    = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        role     = request.form.get("role", "participant")
+
+        # Back-end validation
+        error = None
+        if not email:
+            error = "Email address is required."
+        elif not password:
+            error = "Password is required."
+        elif role not in ("guide", "participant", "admin"):
+            error = "Invalid account type."
+
+        if not error:
+            user = authenticate_user(email, password, role)
+            if user is None:
+                error = "Incorrect email, password, or account type."
+
+        if error:
+            flash(error, "error")
+            return render_template("signin.html", form_email=email, form_role=role), 400
+
+        login_user(user, remember=True)
+        # Respect Flask-Login's ?next= redirect after @login_required
+        next_url = request.args.get("next")
+        if next_url and next_url.startswith("/"):
+            return redirect(next_url)
+        return _redirect_by_role(user.role)
+
+    @app.route("/register", methods=["GET", "POST"])
     def register():
-        return render_template("register.html")
+        if current_user.is_authenticated:
+            return _redirect_by_role(current_user.role)
 
-    @app.route("/admin-access")
+        if request.method == "GET":
+            return render_template("register.html")
+
+        # ---- POST: process registration ----
+        role          = request.form.get("role", "participant")
+        first_name    = request.form.get("first_name", "").strip()
+        last_name     = request.form.get("last_name", "").strip()
+        email         = request.form.get("email", "").strip()
+        password      = request.form.get("password", "")
+        confirm_pw    = request.form.get("confirm_password", "")
+        # Languages sent as comma-separated hidden field by JS
+        raw_languages = request.form.get("guide_languages", "")
+        languages     = [lang.strip() for lang in raw_languages.split(",") if lang.strip()] if raw_languages else []
+
+        profile_photo_file = request.files.get("profile_photo")
+        # Specialties sent as comma-separated hidden field by JS (multi-select, up to 4)
+        raw_specialties = request.form.get("specialties", "")
+        specialties = [s.strip() for s in raw_specialties.split(",") if s.strip()] if raw_specialties else []
+
+        # Front-end-replicable back-end checks
+        error = None
+        if password != confirm_pw:
+            error = "Passwords do not match."
+
+        if not error:
+            try:
+                user = register_user(
+                    role=role,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    password=password,
+                    languages=languages if role == "guide" else None,
+                    profile_photo_file=profile_photo_file if role == "guide" else None,
+                    specialties=specialties if role == "guide" else None,
+                )
+            except ValueError as exc:
+                error = str(exc)
+
+        if error:
+            flash(error, "error")
+            return render_template(
+                "register.html",
+                form_first_name=first_name,
+                form_last_name=last_name,
+                form_email=email,
+                form_role=role,
+            ), 400
+
+        # Log the new user in immediately
+        login_user(user, remember=True)
+        flash(f"Welcome to Walk Prague, {user.first_name}!", "success")
+        return _redirect_by_role(user.role)
+
+    @app.route("/logout")
+    @login_required
+    def logout():
+        logout_user()
+        return redirect(url_for("index"))
+
+    # -----------------------------------------------------------------------
+    # Dashboard / protected routes — all require login + correct role
+    # -----------------------------------------------------------------------
+
+    @app.route("/admin-access", methods=["GET", "POST"])
     def admin_access():
-        return render_template("admin_access.html")
+        # If already logged in as admin, skip straight to dashboard
+        if current_user.is_authenticated and current_user.role == "admin":
+            return redirect(url_for("admin_dashboard"))
+
+        if request.method == "GET":
+            return render_template("admin_access.html")
+
+        # ---- POST: authenticate the admin ----
+        email    = request.form.get("admin_email", "").strip().lower()
+        password = request.form.get("admin_password", "")
+
+        # Back-end validation
+        error = None
+        if not email:
+            error = "Email address is required."
+        elif not password:
+            error = "Password is required."
+
+        if not error:
+            user = authenticate_user(email, password, "admin")
+            if user is None:
+                error = "Invalid email or password."
+
+        if error:
+            flash(error, "error")
+            return render_template("admin_access.html", form_email=email), 400
+
+        login_user(user, remember=False)
+        return redirect(url_for("admin_dashboard"))
 
     @app.route("/admin-dashboard")
+    @login_required
     def admin_dashboard():
+        if current_user.role != "admin":
+            abort(403)  # Guides and participants cannot see admin dashboard
         return render_template("admin_dashboard.html", admin=admin_dashboard_data())
 
     @app.route("/guide-dashboard")
+    @login_required
     def guide_dashboard():
-        return render_template("guide_dashboard.html", guide=guide_dashboard_data())
+        if current_user.role != "guide":
+            # Wrong role — send them to their own dashboard
+            flash("Access denied: that page is for guides only.", "error")
+            return _redirect_by_role(current_user.role)
+        return render_template("guide_dashboard.html", guide=guide_dashboard_data(current_user.id))
 
     @app.route("/participant-dashboard")
+    @login_required
     def participant_dashboard():
-        return render_template("participant_dashboard.html", participant=participant_dashboard_data())
+        if current_user.role != "participant":
+            flash("Access denied: that page is for participants only.", "error")
+            return _redirect_by_role(current_user.role)
+        return render_template("participant_dashboard.html", participant=participant_dashboard_data(current_user.id))
+
+    # -----------------------------------------------------------------------
+    # Tour routes
+    # -----------------------------------------------------------------------
 
     @app.route("/tours/<slug>")
     def tour_detail(slug):
         tour = get_tour_detail(slug)
+        if tour is None:
+            abort(404)
         admin_view = request.args.get("mode") == "admin"
         participant_view = request.args.get("mode") == "participant"
-        return render_template("tour_detail.html", tour=tour, admin_view=admin_view, participant_view=participant_view)
+        # Guides and admins cannot make reservations, so they never see a
+        # bookable panel (the backend also rejects their booking POSTs).
+        staff_view = current_user.is_authenticated and current_user.role in ("guide", "admin")
+        # One active upcoming booking per tour: if the participant already holds
+        # one, the page shows "Booked" until that date has taken place.
+        already_booked = (
+            current_user.is_authenticated
+            and current_user.role == "participant"
+            and participant_has_active_tour_booking(current_user.id, tour["id"])
+        )
+        return render_template(
+            "tour_detail.html", tour=tour, admin_view=admin_view,
+            participant_view=participant_view, staff_view=staff_view,
+            already_booked=already_booked,
+        )
+
+    # -----------------------------------------------------------------------
+    # Reservation API routes
+    # -----------------------------------------------------------------------
 
     @app.post("/reservations")
+    @login_required
     def reservation_create():
+        # Only participants may reserve (a guide cannot make reservations).
+        if current_user.role != "participant":
+            return jsonify({"ok": False, "error": "Only participants can make reservations."}), 403
         payload = request.get_json(silent=True) or request.form
-        occurrence_id = int(payload.get("occurrence_id"))
+        try:
+            schedule_id = int(payload.get("schedule_id"))
+            date_str = str(payload.get("date"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "A valid departure must be selected."}), 400
         guests_raw = payload.get("guests", [])
         if isinstance(guests_raw, str):
             try:
@@ -377,30 +300,159 @@ def create_app():
         else:
             guests = list(guests_raw)
         try:
-            reservation_id = create_reservation(occurrence_id, guests)
+            reservation_id = create_reservation(current_user.id, schedule_id, date_str, guests)
         except ValueError as error:
             return jsonify({"ok": False, "error": str(error)}), 400
         return jsonify({"ok": True, "reservation_id": reservation_id})
 
     @app.post("/reservations/<int:reservation_id>/cancel")
+    @login_required
     def reservation_cancel(reservation_id):
+        if current_user.role != "participant":
+            return jsonify({"ok": False, "error": "Access denied."}), 403
         try:
-            cancel_reservation(reservation_id)
+            cancel_reservation(reservation_id, current_user.id)
         except ValueError as error:
             return jsonify({"ok": False, "error": str(error)}), 400
         return jsonify({"ok": True})
 
     @app.post("/guide/reports")
+    @login_required
     def guide_report_create():
+        if current_user.role != "guide":
+            return jsonify({"ok": False, "error": "Access denied."}), 403
         payload = request.get_json(silent=True) or request.form
         try:
-            create_guide_report(
-                int(payload.get("occurrence_id")),
-                int(payload.get("actual_participants")),
-                payload.get("evidence_photo_path") or "uploads/evidence-placeholder.jpg",
+            occurrence_id = int(payload.get("occurrence_id"))
+            actual = int(payload.get("actual_participants"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Invalid report data."}), 400
+
+        # Save the evidence photo (only meaningful when attendance >= 1).
+        evidence_path = ""
+        photo = request.files.get("evidence_photo")
+        if photo and photo.filename:
+            from pathlib import Path
+            import uuid as _uuid
+            ext = Path(photo.filename).suffix.lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                return jsonify({"ok": False, "error": "Evidence photo must be an image (png, jpg, jpeg, webp, gif)."}), 400
+            reports_dir = Path(app.root_path) / "static" / "img" / "reports"
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            unique_name = f"report_{_uuid.uuid4().hex}{ext}"
+            photo.save(str(reports_dir / unique_name))
+            evidence_path = f"img/reports/{unique_name}"
+
+        try:
+            create_guide_report(current_user.id, occurrence_id, actual, evidence_path)
+        except (TypeError, ValueError) as error:
+            return jsonify({"ok": False, "error": str(error)}), 400
+        return jsonify({"ok": True})
+
+    @app.post("/guide/tours")
+    @login_required
+    def guide_tour_create():
+        """Accept a multipart/form-data POST from the Add Tour form and persist it."""
+        if current_user.role != "guide":
+            return jsonify({"ok": False, "error": "Access denied."}), 403
+
+        try:
+            title        = request.form.get("tour_title", "").strip()
+            description  = request.form.get("brief_description", "").strip()
+            meeting_point= request.form.get("meeting_point", "").strip()
+            duration_raw = request.form.get("tour_duration", "90")
+            max_raw      = request.form.get("max_people", "15")
+            themes       = request.form.getlist("themes")
+            stops        = request.form.getlist("stops[]")
+            accessibility= request.form.getlist("accessibility")
+            photo_files  = request.files.getlist("tour_photos")
+
+            # Parse schedules from parallel arrays
+            days      = request.form.getlist("schedule_day[]")
+            times     = request.form.getlist("schedule_time[]")
+            languages = request.form.getlist("schedule_language[]")
+            schedules = [
+                {"weekday": d, "start_time": t, "language": l}
+                for d, t, l in zip(days, times, languages)
+            ]
+
+            slug = create_guide_tour(
+                guide_id        = current_user.id,
+                title           = title,
+                description     = description,
+                meeting_point   = meeting_point,
+                duration_minutes= int(duration_raw),
+                max_participants = int(max_raw),
+                themes          = themes,
+                stops           = stops,
+                accessibility   = accessibility,
+                schedules       = schedules,
+                photo_files     = photo_files,
             )
+        except (TypeError, ValueError) as error:
+            return jsonify({"ok": False, "error": str(error)}), 400
+
+        return jsonify({"ok": True, "slug": slug})
+
+    @app.post("/guide/tours/<slug>")
+    @login_required
+    def guide_tour_update(slug):
+        """Update an existing tour. Essential fields are locked once a
+        reservation exists (enforced in update_guide_tour)."""
+        if current_user.role != "guide":
+            return jsonify({"ok": False, "error": "Access denied."}), 403
+        try:
+            days      = request.form.getlist("schedule_day[]")
+            times     = request.form.getlist("schedule_time[]")
+            languages = request.form.getlist("schedule_language[]")
+            schedules = [
+                {"weekday": d, "start_time": t, "language": l}
+                for d, t, l in zip(days, times, languages)
+            ]
+            new_slug = update_guide_tour(
+                guide_id         = current_user.id,
+                slug             = slug,
+                title            = request.form.get("tour_title", "").strip(),
+                description      = request.form.get("brief_description", "").strip(),
+                meeting_point    = request.form.get("meeting_point", "").strip(),
+                duration_minutes = int(request.form.get("tour_duration", "90")),
+                max_participants = int(request.form.get("max_people", "15")),
+                themes           = request.form.getlist("themes"),
+                stops            = request.form.getlist("stops[]"),
+                accessibility    = request.form.getlist("accessibility"),
+                schedules        = schedules,
+                photo_files      = request.files.getlist("tour_photos"),
+                keep_photo_ids   = request.form.getlist("keep_photo_ids[]"),
+            )
+        except (TypeError, ValueError) as error:
+            return jsonify({"ok": False, "error": str(error)}), 400
+
+        return jsonify({"ok": True, "slug": new_slug})
+
+    @app.post("/guide/occurrences/<int:occurrence_id>/done")
+    @login_required
+    def guide_mark_done(occurrence_id):
+        """Mark a scheduled tour occurrence as done → moves it to Tours History
+        and opens a pending report (when it had reservations)."""
+        if current_user.role != "guide":
+            return jsonify({"ok": False, "error": "Access denied."}), 403
+        try:
+            mark_occurrence_done(current_user.id, occurrence_id)
         except (TypeError, ValueError) as error:
             return jsonify({"ok": False, "error": str(error)}), 400
         return jsonify({"ok": True})
 
     return app
+
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+def _redirect_by_role(role):
+    """Redirect a user to their appropriate dashboard after login."""
+    if role == "guide":
+        return redirect(url_for("guide_dashboard"))
+    if role == "admin":
+        return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("participant_dashboard"))

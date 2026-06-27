@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" role="img" aria-label="Small Prague illustration">
-  <rect width="560" height="360" rx="18" fill="#f7f2e8"/>
-  <path d="M70 250h420v70H70z" fill="#29343d"/>
-  <path d="M130 250V135h70v115h80V95h75v155h75V150h60v100z" fill="#9f3f2f"/>
-  <path d="M290 95l28-70 28 70z" fill="#29343d"/>
-  <path d="M105 285h350" stroke="#caa75e" stroke-width="14" stroke-linecap="round"/>
-</svg>

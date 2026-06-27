@@ -2,6 +2,28 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.classList.add("page-transition-ready");
   const currentRole = new URLSearchParams(window.location.search).get("role") === "guide" ? "guide" : "participant";
 
+  // Live preview for the guide profile-photo picker on the registration page.
+  const profilePhotoInput = document.querySelector("[data-profile-photo-input]");
+  const profilePhotoPreview = document.querySelector("[data-profile-photo-preview]");
+  const profilePhotoRemove = document.querySelector("[data-profile-photo-remove]");
+  profilePhotoInput?.addEventListener("change", () => {
+    const file = profilePhotoInput.files?.[0];
+    if (file) {
+      profilePhotoPreview.src = URL.createObjectURL(file);
+      profilePhotoRemove?.classList.remove("is-hidden");
+    }
+  });
+
+  profilePhotoRemove?.addEventListener("click", () => {
+    if (profilePhotoInput) {
+      profilePhotoInput.value = "";
+    }
+    if (profilePhotoPreview) {
+      profilePhotoPreview.src = profilePhotoPreview.dataset.defaultSrc || "/static/img/default-profile.png";
+    }
+    profilePhotoRemove.classList.add("is-hidden");
+  });
+
   const updateRoleLinks = (role) => {
     document.querySelectorAll("[data-role-target]").forEach((link) => {
       const url = new URL(link.href, window.location.href);
@@ -56,18 +78,242 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const selectAllLanguages = document.querySelector("[data-select-all-languages]");
   const languageOptions = Array.from(document.querySelectorAll("[data-language-option]"));
-  selectAllLanguages?.addEventListener("change", () => {
-    languageOptions.forEach((option) => {
-      option.checked = selectAllLanguages.checked;
-    });
-  });
+  
+  const selectAllTimes = document.querySelector("[data-select-all-times]");
+  const timeOptions = selectAllTimes ? Array.from(selectAllTimes.closest(".filter-options").querySelectorAll("input[type='checkbox']:not([data-select-all-times])")) : [];
 
-  const clearFilters = document.querySelector("[data-clear-filters]");
-  clearFilters?.addEventListener("click", () => {
-    document.querySelectorAll(".filters input[type='checkbox']").forEach((input) => {
-      input.checked = false;
+  // -------------------------------------------------------------------------
+  // Homepage tour filtering (date, duration, language + theme/accessibility/
+  // start-time/availability). Filters run live as the user changes them.
+  // -------------------------------------------------------------------------
+  const tourCards = Array.from(document.querySelectorAll("[data-tour-card]"));
+  const filtersRoot = document.querySelector(".filters");
+
+  if (tourCards.length && filtersRoot) {
+    const resultCount = document.querySelector("[data-result-count]");
+    const noResults = document.querySelector("[data-no-results]");
+
+    // Pagination: show 6 tours at first, reveal 4 more each "Load more" click.
+    const INITIAL_VISIBLE = 6;
+    const PAGE_STEP = 4;
+    const loadMoreBtn = document.querySelector(".load-more-tours");
+    let currentMatched = [];
+    let pageLimit = INITIAL_VISIBLE;
+
+    const paginate = () => {
+      currentMatched.forEach((card, i) => card.classList.toggle("is-hidden", i >= pageLimit));
+      if (loadMoreBtn) {
+        const remaining = currentMatched.length - pageLimit;
+        loadMoreBtn.classList.toggle("is-hidden", remaining <= 0);
+        if (remaining > 0) {
+          loadMoreBtn.textContent = `Load more tours (${Math.min(PAGE_STEP, remaining)}) →`;
+        }
+      }
+    };
+
+    loadMoreBtn?.addEventListener("click", () => {
+      pageLimit += PAGE_STEP;
+      paginate();
     });
-  });
+
+    // Find the filter <details> whose <h3> matches the given heading.
+    const sectionFor = (heading) =>
+      Array.from(filtersRoot.querySelectorAll("details.filter-section"))
+        .find((section) => section.querySelector("h3")?.textContent.trim() === heading);
+
+    // Labels of the checked rows in a section (ignoring the "all languages" row).
+    const checkedLabels = (heading) => {
+      const section = sectionFor(heading);
+      if (!section) return [];
+      return Array.from(section.querySelectorAll("input[type='checkbox']"))
+        .filter((input) => input.checked && !input.hasAttribute("data-select-all-languages"))
+        .map((input) => input.closest(".filter-row")?.querySelector("span")?.textContent.trim())
+        .filter(Boolean);
+    };
+
+    const splitData = (card, key) =>
+      (card.dataset[key] || "").split("|").map((value) => value.trim()).filter(Boolean);
+
+    const matchesDuration = (minutes, labels) =>
+      labels.some((label) => {
+        if (label.startsWith("Up to 90")) return minutes <= 90;
+        if (label.startsWith("90 - 120")) return minutes >= 90 && minutes <= 120;
+        if (label.startsWith("More than 120")) return minutes > 120;
+        return false;
+      });
+
+    const startTimeBuckets = {
+      "Morning, from 9:00 AM": (h) => h >= 9 && h < 11,
+      "Late morning, from 11:00 AM": (h) => h >= 11 && h < 14,
+      "Afternoon, from 2:00 PM": (h) => h >= 14 && h < 19,
+      "Evening, from 7:00 PM": (h) => h >= 19,
+    };
+
+    const applyFilters = () => {
+      const languages = languageOptions.filter((o) => o.checked).map((o) => o.closest(".filter-row")?.querySelector("span")?.textContent.trim());
+      
+      // Update "All languages" checkbox state automatically
+      if (selectAllLanguages) {
+        selectAllLanguages.checked = languageOptions.every((o) => o.checked);
+      }
+      
+      // Update "Any time" checkbox state automatically
+      if (selectAllTimes) {
+        selectAllTimes.checked = timeOptions.every((o) => o.checked);
+      }
+      
+      const durations = checkedLabels("Duration");
+      const themes = checkedLabels("Tour Theme / Category");
+      const accessibility = checkedLabels("Accessibility");
+      const startLabels = checkedLabels("Start time").filter((l) => l !== "Any time");
+      const availability = checkedLabels("Availability Status");
+      const range = window.walkPragueDateRange || {};
+
+      const matched = [];
+      tourCards.forEach((card) => {
+        const cardLanguages = splitData(card, "languages");
+        const cardDates = splitData(card, "dates");
+        const cardThemes = splitData(card, "themes");
+        const cardAccess = splitData(card, "accessibility");
+        const cardStartTimes = splitData(card, "startTimes");
+        const placesLeft = Number(card.dataset.placesLeft || 0);
+        const minutes = Number(card.dataset.duration || 0);
+
+        let show = true;
+
+        // Language: tour must offer at least one selected language.
+        if (languages.length && !cardLanguages.some((l) => languages.includes(l))) show = false;
+
+        // Duration buckets.
+        if (show && durations.length && !matchesDuration(minutes, durations)) show = false;
+
+        // Date range: at least one departure within [start, end].
+        if (show && range.start) {
+          const end = range.end || range.start;
+          if (!cardDates.some((d) => d >= range.start && d <= end)) show = false;
+        }
+
+        // Theme: tour must carry at least one selected theme.
+        if (show && themes.length && !cardThemes.some((t) => themes.includes(t))) show = false;
+
+        // Accessibility: tour must have every selected feature.
+        if (show && accessibility.length && !accessibility.every((a) => cardAccess.includes(a))) show = false;
+
+        // Start time buckets: at least one departure in a selected window.
+        if (show && startLabels.length) {
+          const hours = cardStartTimes.map((t) => Number(t.split(":")[0]));
+          const ok = startLabels.some((label) => {
+            const test = startTimeBuckets[label];
+            return test && hours.some(test);
+          });
+          if (!ok) show = false;
+        }
+
+        // Availability constraints (all selected must hold). When a date range is
+        // applied, availability is evaluated *within that range* — the best
+        // remaining places among the tour's departures that fall in the range —
+        // which is what makes this filter meaningful (otherwise some far-off date
+        // is always free). With no date range it falls back to the overall best.
+        if (show && availability.length) {
+          let availForFilter = placesLeft;
+          if (range.start) {
+            const end = range.end || range.start;
+            let best = 0;
+            try {
+              const map = JSON.parse(card.dataset.availability || "{}");
+              Object.entries(map).forEach(([d, left]) => {
+                if (d >= range.start && d <= end) best = Math.max(best, Number(left));
+              });
+            } catch (e) { best = placesLeft; }
+            availForFilter = best;
+          }
+          const ok = availability.every((label) => {
+            if (label.startsWith("Hide fully booked")) return availForFilter > 0;
+            const match = label.match(/^(\d+)\+/);
+            return match ? availForFilter >= Number(match[1]) : true;
+          });
+          if (!ok) show = false;
+        }
+
+        // Non-matching cards are always hidden; matching cards are paginated.
+        if (show) {
+          matched.push(card);
+        } else {
+          card.classList.add("is-hidden");
+        }
+      });
+
+      const visible = matched.length;
+      if (resultCount) resultCount.textContent = `${visible} tour${visible === 1 ? "" : "s"} available`;
+      if (noResults) noResults.classList.toggle("is-hidden", visible !== 0);
+
+      // Reset to the first page whenever the filters change, then paginate.
+      currentMatched = matched;
+      pageLimit = INITIAL_VISIBLE;
+      paginate();
+
+      // Render chips for selected filters
+      filtersRoot.querySelectorAll("details.filter-section").forEach((section) => {
+        const chipsContainer = section.nextElementSibling;
+        if (!chipsContainer || !chipsContainer.classList.contains("filter-chips")) return;
+        chipsContainer.innerHTML = "";
+        
+        section.querySelectorAll("input[type='checkbox']").forEach((input) => {
+          if (!input.checked || input.hasAttribute("data-select-all-languages")) return;
+          const labelText = input.closest(".filter-row")?.querySelector("span")?.textContent.trim();
+          if (!labelText || labelText === "Any time") return;
+          
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "guide-language-chip filter-orange-chip"; // Added extra class for orange styling
+          chip.innerHTML = `<span>${labelText}</span><strong aria-hidden="true">×</strong>`;
+          chip.setAttribute("aria-label", `Remove ${labelText} filter`);
+          
+          chip.addEventListener("click", (event) => {
+            event.stopPropagation();
+            input.checked = false;
+            input.dispatchEvent(new Event("change"));
+          });
+          
+          chipsContainer.appendChild(chip);
+        });
+      });
+    };
+
+    selectAllLanguages?.addEventListener("change", () => {
+      languageOptions.forEach((option) => { option.checked = selectAllLanguages.checked; });
+      applyFilters();
+    });
+
+    selectAllTimes?.addEventListener("change", () => {
+      timeOptions.forEach((option) => { option.checked = selectAllTimes.checked; });
+      applyFilters();
+    });
+
+    filtersRoot.querySelectorAll("input[type='checkbox']").forEach((input) => {
+      input.addEventListener("change", applyFilters);
+    });
+
+    document.querySelector("[data-apply-filters]")?.addEventListener("click", applyFilters);
+    window.addEventListener("walkprague:datechange", applyFilters);
+
+    document.querySelector("[data-clear-filters]")?.addEventListener("click", () => {
+      filtersRoot.querySelectorAll("input[type='checkbox']").forEach((input) => { input.checked = false; });
+      const anyTime = Array.from(filtersRoot.querySelectorAll(".filter-row span")).find((s) => s.textContent.trim() === "Any time");
+      if (anyTime) anyTime.closest(".filter-row").querySelector("input").checked = true;
+      window.walkPragueDateRange = { start: null, end: null };
+      const dateLabel = document.querySelector("[data-date-label]");
+      if (dateLabel) dateLabel.textContent = "Select dates";
+      applyFilters();
+    });
+
+    applyFilters();
+  } else {
+    // Pages without tour cards still keep the "select all languages" behaviour.
+    selectAllLanguages?.addEventListener("change", () => {
+      languageOptions.forEach((option) => { option.checked = selectAllLanguages.checked; });
+    });
+  }
 
   document.querySelectorAll("[data-tour-url]").forEach((card) => {
     const openTour = () => {
@@ -128,44 +374,14 @@ document.addEventListener("DOMContentLoaded", () => {
     restartGalleryTimer();
   }
 
-  const availabilityDays = Array.from(document.querySelectorAll("[data-week-day]"));
-  const availabilityPanels = Array.from(document.querySelectorAll("[data-tour-day-panel]"));
-  const selectedDateLabel = document.querySelector("[data-tour-selected-date]");
-  const weekTitle = document.querySelector("[data-week-title]");
-  const weekDayLabels = Array.from(document.querySelectorAll("[data-weekdays] span"));
-  const prevWeek = document.querySelector("[data-week-prev]");
-  const nextWeek = document.querySelector("[data-week-next]");
+  // Availability & booking: a weekly calendar on the tour detail page,
+  // driven by a date -> departures map embedded in [data-calendar].
+  const calendar = document.querySelector("[data-calendar]");
   const bookingControls = document.querySelector("[data-booking-control]");
   const bookNow = document.querySelector("[data-book-now]");
   const bookingCapacity = document.querySelector("[data-booking-capacity]");
   const bookingFeedback = document.querySelector("[data-booking-feedback]");
-  const scheduledWeekDays = new Set(["0", "3", "6"]);
-  const bookableWeekDays = new Set(["0", "3"]);
-  const baseAvailabilityDate = new Date("2026-06-19T00:00:00");
-  let availabilityWeekOffset = 0;
-  let selectedWeekDay = "0";
   let currentAvailableLeft = 0;
-
-  const formatLongDate = (date) => date.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  });
-
-  const formatWeekTitle = (startDate, endDate) => {
-    const sameMonth = startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear();
-    if (sameMonth) {
-      return startDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    }
-    return `${startDate.toLocaleDateString("en-US", { month: "short" })} - ${endDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
-  };
-
-  const dateForWeekDay = (dayIndex) => {
-    const date = new Date(baseAvailabilityDate);
-    date.setDate(baseAvailabilityDate.getDate() + availabilityWeekOffset * 7 + Number(dayIndex));
-    return date;
-  };
 
   const setBookingAvailability = (available) => {
     bookingControls?.classList.toggle("is-disabled", !available);
@@ -182,10 +398,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const activeScheduleButton = () => {
-    const activePanel = availabilityPanels.find((panel) => !panel.classList.contains("is-hidden"));
-    return activePanel?.querySelector(".schedule-options button.active") || activePanel?.querySelector(".schedule-options button");
-  };
+  // The currently selected time slot acts as the chosen departure.
+  const activeScheduleButton = () => document.querySelector("[data-cal-panel] .time-slot.active") || null;
 
   const setBookingMessage = (message, type = "") => {
     if (!bookingFeedback) return;
@@ -211,58 +425,155 @@ document.addEventListener("DOMContentLoaded", () => {
       bookNow.tabIndex = canBook ? 0 : -1;
     }
     if (currentAvailableLeft > 0 && totalRequested > currentAvailableLeft) {
-      setBookingMessage(`Only ${currentAvailableLeft} place${currentAvailableLeft === 1 ? "" : "s"} left. Remove guests to continue.`, "error");
+      const maxGuests = currentAvailableLeft - 1;
+      setBookingMessage(
+        maxGuests <= 0
+          ? `Only 1 place left — you can book just yourself, no extra guests.`
+          : `Only ${currentAvailableLeft} places left — you can bring at most ${maxGuests} guest${maxGuests === 1 ? "" : "s"}.`,
+        "error"
+      );
     } else if (bookingFeedback?.classList.contains("is-error")) {
       setBookingMessage("");
     }
   };
 
-  const showAvailabilityDay = (dayIndex) => {
-    selectedWeekDay = String(dayIndex);
-    const hasBookableSchedule = bookableWeekDays.has(selectedWeekDay);
-    availabilityDays.forEach((button) => button.classList.toggle("active", button.dataset.weekDay === selectedWeekDay));
-    availabilityPanels.forEach((panel) => {
-      panel.classList.toggle("is-hidden", panel.dataset.tourDayPanel !== selectedWeekDay);
+  if (calendar) {
+    const availability = JSON.parse(calendar.dataset.availability || "{}");
+    const calMonth = calendar.querySelector("[data-cal-month]");
+    const calDays = calendar.querySelector("[data-cal-days]");
+    const calPanel = calendar.querySelector("[data-cal-panel]");
+    const calSelectedDate = calendar.querySelector("[data-cal-selected-date]");
+    const calPrev = calendar.querySelector("[data-cal-prev]");
+    const calNext = calendar.querySelector("[data-cal-next]");
+
+    const parseYMD = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+    const ymd = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    const mondayOf = (dt) => { const x = new Date(dt); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+    const today = parseYMD(calendar.dataset.today);
+    const thisMonday = mondayOf(today);
+    let weekStart = new Date(thisMonday);
+    let selectedKey = null;
+
+    const selectSlot = (btn) => {
+      if (!btn || btn.disabled) return;
+      calPanel.querySelectorAll(".time-slot").forEach((s) => s.classList.remove("active"));
+      btn.classList.add("active");
+      setBookingAvailability(Number(btn.dataset.availableLeft || 0) > 0);
+      updateBookingCapacity();
+    };
+
+    const renderPanel = (key) => {
+      const slots = availability[key] || [];
+      if (calSelectedDate) {
+        calSelectedDate.textContent = slots[0]?.date_label
+          || parseYMD(key).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+      }
+      calPanel.innerHTML = "";
+      if (!slots.length) {
+        calPanel.innerHTML = '<p class="no-tour-day">No availability for this date.</p>';
+        setBookingAvailability(false);
+        updateBookingCapacity();
+        return;
+      }
+      const groups = [];
+      slots.forEach((s) => {
+        let g = groups.find((x) => x.language === s.language);
+        if (!g) { g = { language: s.language, flag: s.flag, items: [] }; groups.push(g); }
+        g.items.push(s);
+      });
+      groups.forEach((g) => {
+        const section = document.createElement("section");
+        section.className = "cal-lang";
+        const h = document.createElement("h4");
+        h.innerHTML = `<img class="lang-flag" src="${g.flag}" alt=""> ${g.language}`;
+        section.appendChild(h);
+        const rowEl = document.createElement("div");
+        rowEl.className = "cal-slot-row";
+        g.items.forEach((s) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "time-slot" + (s.left === 0 ? " is-full" : "");
+          b.dataset.scheduleId = s.schedule_id;
+          b.dataset.date = s.date;
+          b.dataset.availableLeft = s.left;
+          b.dataset.scheduleSummary = s.summary;
+          b.disabled = s.left === 0;
+          b.innerHTML = `<span class="time-slot-time">${s.time}</span>`
+            + `<span class="time-slot-count ${s.left === 0 ? "full" : "available"}">${s.left === 0 ? "No availability" : s.left + " / " + s.max}</span>`;
+          b.addEventListener("click", () => selectSlot(b));
+          rowEl.appendChild(b);
+        });
+        section.appendChild(rowEl);
+        calPanel.appendChild(section);
+      });
+      const firstFree = calPanel.querySelector(".time-slot:not(.is-full)");
+      if (firstFree) { selectSlot(firstFree); }
+      else { setBookingAvailability(false); updateBookingCapacity(); }
+    };
+
+    const selectDay = (key) => {
+      selectedKey = key;
+      renderWeek();
+      renderPanel(key);
+    };
+
+    function renderWeek() {
+      if (calMonth) calMonth.textContent = weekStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      calDays.innerHTML = "";
+      for (let i = 0; i < 7; i += 1) {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        const key = ymd(d);
+        const slots = availability[key] || [];
+        const scheduled = slots.length > 0;
+        const hasFree = slots.some((s) => s.left > 0);
+        const isPast = d < today;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cal-day";
+        btn.textContent = String(d.getDate());
+        if (scheduled) btn.classList.add("scheduled");
+        if (scheduled && !hasFree) btn.classList.add("full");
+        if (key === selectedKey) btn.classList.add("active");
+        if (isPast || !scheduled) {
+          btn.disabled = true;
+        } else {
+          btn.addEventListener("click", () => selectDay(key));
+        }
+        calDays.appendChild(btn);
+      }
+      if (calPrev) calPrev.disabled = weekStart <= thisMonday;
+    }
+
+    calPrev?.addEventListener("click", () => {
+      const candidate = new Date(weekStart);
+      candidate.setDate(candidate.getDate() - 7);
+      if (candidate < thisMonday) return;
+      weekStart = candidate;
+      renderWeek();
     });
-    if (selectedDateLabel) selectedDateLabel.textContent = formatLongDate(dateForWeekDay(selectedWeekDay));
-    setBookingAvailability(hasBookableSchedule);
-    window.requestAnimationFrame(updateBookingCapacity);
-  };
-
-  const renderAvailabilityWeek = () => {
-    if (!availabilityDays.length) return;
-    const startDate = dateForWeekDay(0);
-    const endDate = dateForWeekDay(6);
-    if (weekTitle) weekTitle.textContent = formatWeekTitle(startDate, endDate);
-    availabilityDays.forEach((button) => {
-      const dayDate = dateForWeekDay(button.dataset.weekDay);
-      button.textContent = String(dayDate.getDate());
-      button.classList.toggle("scheduled", scheduledWeekDays.has(button.dataset.weekDay));
-      button.classList.toggle("fully-booked-day", scheduledWeekDays.has(button.dataset.weekDay) && !bookableWeekDays.has(button.dataset.weekDay));
+    calNext?.addEventListener("click", () => {
+      weekStart = new Date(weekStart);
+      weekStart.setDate(weekStart.getDate() + 7);
+      renderWeek();
     });
-    weekDayLabels.forEach((label, index) => {
-      label.textContent = dateForWeekDay(index).toLocaleDateString("en-US", { weekday: "short" });
+
+    // Open on the first upcoming date that has departures.
+    window.requestAnimationFrame(() => {
+      const upcomingKeys = Object.keys(availability).filter((k) => parseYMD(k) >= today).sort();
+      if (upcomingKeys.length) {
+        selectedKey = upcomingKeys[0];
+        weekStart = mondayOf(parseYMD(selectedKey));
+        renderWeek();
+        renderPanel(selectedKey);
+      } else {
+        renderWeek();
+        setBookingAvailability(false);
+        updateBookingCapacity();
+      }
     });
-    showAvailabilityDay(selectedWeekDay);
-  };
-
-  availabilityDays.forEach((dayButton) => {
-    dayButton.addEventListener("click", () => {
-      showAvailabilityDay(dayButton.dataset.weekDay);
-    });
-  });
-
-  prevWeek?.addEventListener("click", () => {
-    availabilityWeekOffset -= 1;
-    renderAvailabilityWeek();
-  });
-
-  nextWeek?.addEventListener("click", () => {
-    availabilityWeekOffset += 1;
-    renderAvailabilityWeek();
-  });
-
-  renderAvailabilityWeek();
+  }
 
   bookNow?.addEventListener("click", (event) => {
     if (bookNow.classList.contains("is-disabled")) {
@@ -274,15 +585,16 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       const selectedButton = activeScheduleButton();
       const selectedSchedule = selectedButton?.dataset.scheduleSummary || selectedDateLabel?.textContent || "selected departure";
-      const occurrenceId = selectedButton?.dataset.occurrenceId;
-      if (!occurrenceId) {
-        setBookingMessage("This departure is not connected to a backend occurrence yet.", "error");
+      const scheduleId = selectedButton?.dataset.scheduleId;
+      const date = selectedButton?.dataset.date;
+      if (!scheduleId || !date) {
+        setBookingMessage("Please select a departure date and time first.", "error");
         return;
       }
       fetch("/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ occurrence_id: occurrenceId, guests })
+        body: JSON.stringify({ schedule_id: scheduleId, date, guests })
       })
         .then((response) => response.json().then((body) => ({ ok: response.ok, body })))
         .then(({ ok, body }) => {
@@ -300,16 +612,6 @@ document.addEventListener("DOMContentLoaded", () => {
           setBookingMessage("Reservation could not be completed. Please try again.", "error");
         });
     }
-  });
-
-  document.querySelectorAll(".schedule-options button").forEach((button) => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".schedule-options button").forEach((timeButton) => timeButton.classList.remove("active"));
-      button.classList.add("active");
-      const available = Number(button.dataset.availableLeft || 0) > 0;
-      setBookingAvailability(available);
-      updateBookingCapacity();
-    });
   });
 
   const guestBooking = document.querySelector("[data-guest-booking]");
@@ -494,12 +796,30 @@ document.addEventListener("DOMContentLoaded", () => {
   if (authRoleButtons.length) setAuthRole(currentRole);
 
   authForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const target = authRoleInput?.value === "guide" ? "/guide-dashboard" : "/participant-home";
+    // Front-end validation before letting the browser POST to the server
+    const email = authForm.querySelector("input[name='email']");
+    const password = authForm.querySelector("input[name='password']");
+    let valid = true;
+
+    // Remove any previous inline error highlights
+    [email, password].forEach((field) => field?.classList.remove("field-error"));
+
+    if (!email?.value.trim()) {
+      email?.classList.add("field-error");
+      valid = false;
+    }
+    if (!password?.value) {
+      password?.classList.add("field-error");
+      valid = false;
+    }
+
+    if (!valid) {
+      event.preventDefault();
+      return;
+    }
+    // Valid — let the browser submit the form naturally so Flask can check DB
     document.body.classList.add("page-transition-out");
-    window.setTimeout(() => {
-      window.location.href = target;
-    }, 260);
+    // Do NOT call event.preventDefault() — the POST will reach the server
   });
 
   const registerRoleButtons = Array.from(document.querySelectorAll("[data-register-role]"));
@@ -572,12 +892,43 @@ document.addEventListener("DOMContentLoaded", () => {
   if (registerRoleButtons.length) setRegisterRole(currentRole);
 
   registerForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const target = registerRoleInput?.value === "guide" ? "/guide-dashboard" : "/participant-home";
+    // Front-end validation before letting the browser POST to the server
+    const firstName = registerForm.querySelector("input[name='first_name']");
+    const lastName = registerForm.querySelector("input[name='last_name']");
+    const email = registerForm.querySelector("input[name='email']");
+    const password = registerForm.querySelector("input[name='password']");
+    const confirmPassword = registerForm.querySelector("input[name='confirm_password']");
+    const languageValue = registerForm.querySelector("[data-guide-language-value]");
+    const role = registerRoleInput?.value;
+    let valid = true;
+
+    // Remove previous highlights
+    [firstName, lastName, email, password, confirmPassword].forEach((f) => f?.classList.remove("field-error"));
+
+    if (!firstName?.value.trim()) { firstName?.classList.add("field-error"); valid = false; }
+    if (!lastName?.value.trim())  { lastName?.classList.add("field-error");  valid = false; }
+    if (!email?.value.trim())     { email?.classList.add("field-error");     valid = false; }
+    if (!password?.value || password.value.length < 8) {
+      password?.classList.add("field-error");
+      valid = false;
+    }
+    if (password?.value !== confirmPassword?.value) {
+      confirmPassword?.classList.add("field-error");
+      valid = false;
+    }
+    if (role === "guide" && !languageValue?.value.trim()) {
+      // Show a visible cue on the language selector
+      document.querySelector("[data-guide-language-toggle]")?.classList.add("field-error");
+      valid = false;
+    }
+
+    if (!valid) {
+      event.preventDefault();
+      return;
+    }
+    // Valid — let the browser submit naturally so Flask saves to DB
     document.body.classList.add("page-transition-out");
-    window.setTimeout(() => {
-      window.location.href = target;
-    }, 260);
+    // Do NOT call event.preventDefault()
   });
 
   const guideLanguageSelect = document.querySelector("[data-guide-language-select]");
@@ -596,8 +947,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (guideLanguageValue) guideLanguageValue.value = Array.from(selectedGuideLanguages).join(", ");
     if (guideLanguagePlaceholder) {
       guideLanguagePlaceholder.textContent = selectedGuideLanguages.size
-        ? `${selectedGuideLanguages.size} language${selectedGuideLanguages.size === 1 ? "" : "s"} selected`
-        : "Select languages";
+        ? `${selectedGuideLanguages.size} Language${selectedGuideLanguages.size === 1 ? "" : "s"} selected`
+        : "Add languages";
     }
     if (!guideLanguageChips) return;
     guideLanguageChips.innerHTML = "";
@@ -630,6 +981,8 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedGuideLanguages.add(language);
       }
       renderGuideLanguages();
+      guideLanguageSelect?.classList.remove("is-open");
+      guideLanguageToggle?.setAttribute("aria-expanded", "false");
     });
   });
 
@@ -640,15 +993,90 @@ document.addEventListener("DOMContentLoaded", () => {
     renderGuideLanguages();
   });
 
-  guideLanguageApply?.addEventListener("click", () => {
-    guideLanguageSelect?.classList.remove("is-open");
-    guideLanguageToggle?.setAttribute("aria-expanded", "false");
-  });
+
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest("[data-guide-language-select]")) {
       guideLanguageSelect?.classList.remove("is-open");
       guideLanguageToggle?.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Specialty dropdown — multi-select up to 4, styled identically to languages
+  // -------------------------------------------------------------------------
+  const guideSpecialtySelect = document.querySelector("[data-guide-specialty-select]");
+  const guideSpecialtyToggle = document.querySelector("[data-guide-specialty-toggle]");
+  const guideSpecialtyPlaceholder = document.querySelector("[data-guide-specialty-placeholder]");
+  const guideSpecialtyValue = document.querySelector("[data-guide-specialty-value]");
+  const guideSpecialtyChips = document.querySelector("[data-guide-specialty-chips]");
+  const guideSpecialtyOptions = Array.from(document.querySelectorAll("[data-guide-specialty-option]"));
+  const guideSpecialtyApply = document.querySelector("[data-guide-specialty-apply]");
+  const selectedGuideSpecialties = new Set();
+
+  const renderGuideSpecialties = () => {
+    guideSpecialtyOptions.forEach((option) => {
+      option.classList.toggle("is-selected", selectedGuideSpecialties.has(option.dataset.value));
+    });
+    if (guideSpecialtyValue) guideSpecialtyValue.value = Array.from(selectedGuideSpecialties).join(", ");
+    if (guideSpecialtyPlaceholder) {
+      guideSpecialtyPlaceholder.textContent = selectedGuideSpecialties.size
+        ? `${selectedGuideSpecialties.size} Specialt${selectedGuideSpecialties.size === 1 ? "y" : "ies"} selected`
+        : "Add specialties";
+    }
+    if (!guideSpecialtyChips) return;
+    guideSpecialtyChips.innerHTML = "";
+    selectedGuideSpecialties.forEach((specialty) => {
+      const option = guideSpecialtyOptions.find((item) => item.dataset.value === specialty);
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "guide-language-chip";
+      chip.dataset.removeGuideSpecialty = specialty;
+      chip.innerHTML = `<span>${option?.textContent || specialty}</span><strong aria-hidden="true">×</strong>`;
+      chip.setAttribute("aria-label", `Remove ${specialty}`);
+      guideSpecialtyChips.appendChild(chip);
+    });
+  };
+
+  guideSpecialtyToggle?.addEventListener("click", () => {
+    const open = !guideSpecialtySelect?.classList.contains("is-open");
+    guideSpecialtySelect?.classList.toggle("is-open", open);
+    guideSpecialtyToggle.setAttribute("aria-expanded", String(open));
+  });
+
+  guideSpecialtyOptions.forEach((option) => {
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const value = option.dataset.value;
+      if (!value) return;
+      if (selectedGuideSpecialties.has(value)) {
+        selectedGuideSpecialties.delete(value);
+      } else {
+        if (selectedGuideSpecialties.size >= 4) {
+          alert("You can select up to 4 specialties.");
+          return;
+        }
+        selectedGuideSpecialties.add(value);
+      }
+      renderGuideSpecialties();
+      guideSpecialtySelect?.classList.remove("is-open");
+      guideSpecialtyToggle?.setAttribute("aria-expanded", "false");
+    });
+  });
+
+  guideSpecialtyChips?.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-remove-guide-specialty]");
+    if (!chip) return;
+    selectedGuideSpecialties.delete(chip.dataset.removeGuideSpecialty);
+    renderGuideSpecialties();
+  });
+
+
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-guide-specialty-select]")) {
+      guideSpecialtySelect?.classList.remove("is-open");
+      guideSpecialtyToggle?.setAttribute("aria-expanded", "false");
     }
   });
 
@@ -736,6 +1164,23 @@ document.addEventListener("DOMContentLoaded", () => {
     adminTourRows.forEach((row) => {
       row.classList.toggle("is-hidden", language !== "all" && row.dataset.language !== language);
     });
+  });
+
+  // Admin scroll tables: show exactly 4 full rows (header + 4 rows), then scroll.
+  // Measure the real bottom of the 4th row so the 5th is never half-cropped
+  // (rows vary in height because long titles wrap).
+  document.querySelectorAll(".admin-table-wrap.admin-scroll").forEach((wrap) => {
+    const rows = Array.from(wrap.querySelectorAll("tbody tr"));
+    if (rows.length <= 4) {
+      wrap.style.maxHeight = "none";
+      wrap.style.overflowY = "visible";
+      return;
+    }
+    wrap.style.maxHeight = "none";
+    wrap.scrollTop = 0;
+    const top = wrap.getBoundingClientRect().top;
+    const fourthBottom = rows[3].getBoundingClientRect().bottom;
+    wrap.style.maxHeight = `${Math.round(fourthBottom - top)}px`;
   });
 
   const guideDetailButtons = Array.from(document.querySelectorAll("[data-guide-detail]"));
@@ -842,6 +1287,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const guideReportDate = document.querySelector("[data-guide-report-date]");
   const guideReportExpected = document.querySelector("[data-guide-report-expected]");
   const guideReportClose = document.querySelector("[data-guide-report-close]");
+  const guideReportForm = document.querySelector("[data-guide-report-form]");
+  const guideReportOccurrence = document.querySelector("[data-guide-report-occurrence]");
+  const guideReportActual = document.querySelector("[data-guide-report-actual]");
+  const guideReportPhoto = document.querySelector("[data-guide-report-photo]");
+  const guideReportUpload = document.querySelector("[data-guide-report-upload]");
+  const guideReportPhotoNote = document.querySelector("[data-guide-report-photo-note]");
+  const guideReportMessage = document.querySelector("[data-guide-report-message]");
 
   const openGuideOpsModal = (title, bodyHtml) => {
     if (!guideOpsModal || !guideOpsTitle || !guideOpsBody) return;
@@ -864,6 +1316,30 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-guide-reservations]").forEach((button) => {
     button.addEventListener("click", () => {
       const data = button.dataset;
+      let ledgerHtml = "";
+      try {
+        const list = JSON.parse(data.reservationList || "[]");
+        if (list.length === 0) {
+          ledgerHtml = "<p>No active reservations for this occurrence.</p>";
+        } else {
+          list.forEach((res, index) => {
+            const guestText = res.guests.length > 0 ? `+${res.guests.length} guests` : "no guests";
+            const accompanyingText = res.guests.length > 0 ? `<p>Accompanying: ${res.guests.join(", ")}</p>` : "<p>No accompanying guests.</p>";
+            ledgerHtml += `
+              <article>
+                <strong>${guestText} (${res.total_spots} spots)</strong>
+                <h4>${index + 1}. ${res.participant}</h4>
+                <p>Contact email: ${res.email}</p>
+                ${accompanyingText}
+              </article>
+            `;
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse reservation list", e);
+        ledgerHtml = "<p>Error loading reservations.</p>";
+      }
+
       openGuideOpsModal(data.reservationTitle || "Reservations", `
         <div class="reservation-audit-summary">
           <strong>Occurrence Date:</strong> ${data.reservationDate}<br>
@@ -871,22 +1347,88 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <h3>Expected Booking Seats Ledger</h3>
         <div class="reservation-ledger">
-          <article><strong>+2 guests (3 spots)</strong><h4>1. John Miller</h4><p>Contact email: j.miller@boston.edu</p><p>Accompanying: Sarah Miller, Dave Miller</p></article>
-          <article><strong>+1 guests (2 spots)</strong><h4>2. Astrid Lindgren</h4><p>Contact email: astrid@lindgren.se</p><p>Accompanying: Lars Lindgren</p></article>
-          <article><strong>+3 guests (4 spots)</strong><h4>3. Yoshi Tanaka</h4><p>Contact email: yoshi_t@tokyo.jp</p><p>Accompanying: Emi, Haru, Kenji</p></article>
+          ${ledgerHtml}
         </div>
       `);
     });
   });
+
+  // Mark as done logic
+  document.querySelectorAll("[data-mark-as-done]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const occurrenceId = button.dataset.occurrenceId;
+      if (!occurrenceId || button.disabled) return;
+      button.disabled = true;
+      button.textContent = "Marking…";
+      try {
+        const response = await fetch(`/guide/occurrences/${occurrenceId}/done`, { method: "POST" });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not mark as done.");
+        // Reload so the server moves it into Tours History and opens its report.
+        window.location.reload();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Mark as done";
+        window.alert(error.message);
+      }
+    });
+  });
+
+  // Reflect whether a photo is required based on the declared attendance.
+  const syncReportPhotoRequirement = () => {
+    const attendees = Number(guideReportActual?.value || 0);
+    const photoNeeded = attendees >= 1;
+    if (guideReportPhoto) guideReportPhoto.required = photoNeeded;
+    guideReportUpload?.classList.toggle("is-optional", !photoNeeded);
+    if (guideReportPhotoNote) {
+      guideReportPhotoNote.textContent = photoNeeded
+        ? "Drag and drop or click here to choose group evidence photo"
+        : "No photo needed — nobody attended, this report will be cleared.";
+    }
+  };
 
   document.querySelectorAll("[data-guide-report]").forEach((button) => {
     button.addEventListener("click", () => {
       if (guideReportTitle) guideReportTitle.textContent = `Report Attendance: ${button.dataset.reportTitle}`;
       if (guideReportDate) guideReportDate.textContent = `Occurrence: ${button.dataset.reportDate}`;
       if (guideReportExpected) guideReportExpected.textContent = button.dataset.reportExpected || "0";
+      if (guideReportOccurrence) guideReportOccurrence.value = button.dataset.reportOccurrence || "";
+      if (guideReportActual) guideReportActual.value = button.dataset.reportExpected || "1";
+      if (guideReportPhoto) guideReportPhoto.value = "";
+      if (guideReportMessage) { guideReportMessage.textContent = ""; guideReportMessage.classList.remove("is-error", "is-ok"); }
+      syncReportPhotoRequirement();
       guideReportModal?.classList.add("is-open");
       guideReportModal?.setAttribute("aria-hidden", "false");
     });
+  });
+
+  guideReportActual?.addEventListener("input", syncReportPhotoRequirement);
+
+  guideReportForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const attendees = Number(guideReportActual?.value || 0);
+    const expected = Number(guideReportExpected?.textContent || 0);
+    if (attendees < 0) {
+      if (guideReportMessage) { guideReportMessage.textContent = "Attendance cannot be negative."; guideReportMessage.classList.add("is-error"); }
+      return;
+    }
+    if (attendees > expected) {
+      if (guideReportMessage) { guideReportMessage.textContent = `Attendance cannot exceed the ${expected} booked seats.`; guideReportMessage.classList.add("is-error"); }
+      return;
+    }
+    if (attendees >= 1 && !(guideReportPhoto?.files?.length)) {
+      if (guideReportMessage) { guideReportMessage.textContent = "Please upload one evidence photo."; guideReportMessage.classList.add("is-error"); }
+      return;
+    }
+    try {
+      const response = await fetch("/guide/reports", { method: "POST", body: new FormData(guideReportForm) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not file the report.");
+      if (guideReportMessage) { guideReportMessage.textContent = "Report filed."; guideReportMessage.classList.remove("is-error"); guideReportMessage.classList.add("is-ok"); }
+      setTimeout(() => window.location.reload(), 800);
+    } catch (error) {
+      if (guideReportMessage) { guideReportMessage.textContent = error.message; guideReportMessage.classList.add("is-error"); guideReportMessage.classList.remove("is-ok"); }
+    }
   });
 
   guideOpsCloseButtons.forEach((button) => button.addEventListener("click", closeGuideOpsModal));
@@ -910,16 +1452,63 @@ document.addEventListener("DOMContentLoaded", () => {
   const removeStop = document.querySelector("[data-remove-stop]");
   const tourPhotos = document.querySelector("[data-tour-photos]");
   const photoCount = document.querySelector("[data-photo-count]");
+  const existingPhotos = document.querySelector("[data-existing-photos]");
+
+  // Number of existing photos the guide chose to keep (one hidden input each).
+  const keptPhotoCount = () => existingPhotos
+    ? existingPhotos.querySelectorAll('input[name="keep_photo_ids[]"]').length : 0;
+
+  // Photo status line. In read-only "More Details" view it just states how many
+  // photos the tour has; while editing it shows the live kept + new = 5 counter.
+  const updatePhotoCount = () => {
+    if (!photoCount) return;
+    const kept = keptPhotoCount();
+    const selected = tourPhotos?.files?.length || 0;
+    const total = kept + selected;
+    if (addTourForm?.classList.contains("is-readonly")) {
+      photoCount.textContent = `${kept} photo${kept === 1 ? "" : "s"} uploaded`;
+      photoCount.classList.remove("is-error");
+      return;
+    }
+    if (kept === 0 && selected === 0) {
+      photoCount.textContent = "No photos selected";
+    } else {
+      photoCount.textContent = `${total} of 5 photos (${kept} kept, ${selected} new)`;
+    }
+    photoCount.classList.toggle("is-error", total !== 5);
+  };
+
+  // Render the tour's current photos as deletable thumbnails when viewing/editing.
+  const renderExistingPhotos = (raw) => {
+    if (!existingPhotos) return;
+    existingPhotos.innerHTML = "";
+    let photos = [];
+    try { photos = raw ? JSON.parse(raw) : []; } catch (e) { photos = []; }
+    photos.forEach((photo) => {
+      const thumb = document.createElement("div");
+      thumb.className = "guide-photo-thumb";
+      thumb.innerHTML =
+        `<img src="${photo.url}" alt="Tour photo">` +
+        `<button type="button" class="guide-photo-remove" data-remove-photo aria-label="Remove this photo">×</button>` +
+        `<input type="hidden" name="keep_photo_ids[]" value="${photo.id}">`;
+      existingPhotos.appendChild(thumb);
+    });
+  };
   const addTourMessage = document.querySelector("[data-add-tour-message]");
   const addTourTitle = document.querySelector("[data-add-tour-title]");
   const addTourSubtitle = document.querySelector("[data-add-tour-subtitle]");
   const editTourButton = document.querySelector("[data-edit-tour]");
   const saveTourButton = document.querySelector("[data-save-tour]");
-  const existingGuideSchedules = [
-    { day: "Monday", start: "09:00", duration: 180 },
-    { day: "Wednesday", start: "11:00", duration: 120 },
-    { day: "Friday", start: "14:00", duration: 180 },
-  ];
+  const existingSchedulesData = addTourModal?.dataset.existingSchedules;
+  const existingGuideSchedules = existingSchedulesData ? JSON.parse(existingSchedulesData) : [];
+
+  // Edit-mode state: which tour (slug) is open, and whether it is locked
+  // (i.e. a reservation exists, so the tour can no longer be edited at all).
+  let currentEditSlug = null;
+  let currentTourLocked = false;
+
+  // Grey padlock icon (replaces the previous emoji) shown on locked tours.
+  const LOCK_ICON_SVG = '<svg class="lock-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="#94a3b8" d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v3H9V6zm3 7a1.6 1.6 0 0 1 .8 2.98V18a.8.8 0 0 1-1.6 0v-2.02A1.6 1.6 0 0 1 12 13z"/></svg>';
 
   const setAddTourReadonly = (readonly) => {
     if (!addTourForm) return;
@@ -927,13 +1516,20 @@ document.addEventListener("DOMContentLoaded", () => {
     addTourForm.querySelectorAll("input, select, textarea").forEach((control) => {
       control.disabled = Boolean(readonly);
     });
-    addTourForm.querySelectorAll("[data-add-schedule-row], [data-add-stop], [data-remove-stop], [data-remove-schedule]").forEach((control) => {
+    addTourForm.querySelectorAll("[data-add-schedule-row], [data-add-stop], [data-remove-stop], [data-remove-schedule], [data-remove-photo]").forEach((control) => {
       control.disabled = Boolean(readonly);
     });
     if (!readonly) {
       refreshScheduleRemoveButtons();
       refreshStopRemoveButton();
+    } else {
+      // Viewing only: never show schedule conflict warnings/highlighting
+      // (validation populated by fillTourDetailsForm runs before this).
+      addTourForm.querySelectorAll(".guide-schedule-edit-row").forEach((row) => row.classList.remove("has-conflict"));
+      setScheduleWarning("", false);
     }
+    // Refresh the photo status line to match the new mode (view vs edit).
+    updatePhotoCount();
   };
 
   const setCheckboxGroup = (name, values) => {
@@ -947,27 +1543,133 @@ document.addEventListener("DOMContentLoaded", () => {
   const fillTourDetailsForm = (data) => {
     if (!addTourForm) return;
     const titleInput = addTourForm.querySelector('[name="tour_title"]');
+    const meetingPointInput = addTourForm.querySelector('[name="meeting_point"]');
     const maxInput = addTourForm.querySelector('[name="max_people"]');
-    const durationSelect = addTourForm.querySelector('[name="schedule_duration[]"]');
-    const languageSelect = addTourForm.querySelector('[name="schedule_language[]"]');
     const description = addTourForm.querySelector('[name="brief_description"]');
-    const stops = Array.from(addTourForm.querySelectorAll('[name="stops[]"]'));
-    const firstLanguage = (data.tourLanguages || "English").split(",")[0]?.trim() || "English";
+    const durationInput = addTourForm.querySelector('[name="tour_duration"]');
 
     if (titleInput) titleInput.value = data.tourTitle || "";
+    if (meetingPointInput) meetingPointInput.value = data.tourMeeting || "";
     if (maxInput) maxInput.value = data.tourMax || "15";
-    if (durationSelect) durationSelect.value = data.tourDuration || "120";
-    if (languageSelect) languageSelect.value = firstLanguage;
-    if (description) {
-      description.value = `${data.tourTitle || "This tour"} introduces guests to Prague through carefully planned stops, local context, and a clear meeting point at ${data.tourMeeting || "the city center"}.`;
+    if (description) description.value = data.tourDescription || "";
+    if (durationInput) {
+      const dur = data.tourDuration || "90";
+      // Make sure the tour's duration is selectable even if it isn't one of the
+      // preset options, so it always shows in the details view.
+      if (durationInput.tagName === "SELECT" && !Array.from(durationInput.options).some((o) => o.value === String(dur))) {
+        const opt = document.createElement("option");
+        opt.value = String(dur);
+        opt.textContent = `${dur} min`;
+        durationInput.appendChild(opt);
+      }
+      durationInput.value = dur;
     }
 
-    ["Old Town Square", "Astronomical Clock", "Charles Bridge", "Powder Gate"].forEach((stop, index) => {
-      if (stops[index]) stops[index].value = stop;
-    });
-    setCheckboxGroup("themes", ["Historical", "Architectural", "Local legends and traditions"]);
-    setCheckboxGroup("accessibility", ["Suitable for children"]);
-    if (photoCount) photoCount.textContent = "Photos already attached to this tour";
+    // Populate stops from DB
+    if (stopsBuilder && data.tourStops) {
+      try {
+        const stops = JSON.parse(data.tourStops);
+        stopsBuilder.innerHTML = "";
+        stops.forEach((stop) => {
+          const name = typeof stop === "string" ? stop : (stop.title || "");
+          stopsBuilder.appendChild(createStopRow(name));
+        });
+        while (stopsBuilder.querySelectorAll('[name="stops[]"]').length < 4) {
+          stopsBuilder.appendChild(createStopRow());
+        }
+        refreshStopRemoveButton();
+      } catch (e) {
+        console.error("Failed to parse tourStops", e);
+      }
+    }
+
+    // Populate themes from DB
+    if (data.tourThemes) {
+      try {
+        const themes = JSON.parse(data.tourThemes);
+        setCheckboxGroup("themes", themes);
+      } catch (e) {
+        console.error("Failed to parse tourThemes", e);
+      }
+    }
+
+    // Populate accessibility from DB
+    if (data.tourAccessibility) {
+      try {
+        const accessibility = JSON.parse(data.tourAccessibility);
+        const selectedAccessibility = [];
+        if (accessibility.wheelchair_accessible) selectedAccessibility.push("Wheelchair accessible");
+        if (accessibility.suitable_for_children) selectedAccessibility.push("Suitable for children");
+        if (accessibility.pet_friendly) selectedAccessibility.push("Pet friendly");
+        setCheckboxGroup("accessibility", selectedAccessibility);
+      } catch (e) {
+        console.error("Failed to parse tourAccessibility", e);
+      }
+    }
+
+    // Populate weekly schedules from DB
+    if (scheduleBuilder && data.tourWeeklySchedules) {
+      try {
+        const weekly = JSON.parse(data.tourWeeklySchedules);
+        scheduleBuilder.innerHTML = "";
+        weekly.forEach((sch) => {
+          const row = document.createElement("article");
+          row.className = "guide-schedule-edit-row";
+          row.innerHTML = `
+              <label>
+                <span>Day</span>
+                <select name="schedule_day[]" required>
+                  <option>Monday</option>
+                  <option>Tuesday</option>
+                  <option>Wednesday</option>
+                  <option>Thursday</option>
+                  <option>Friday</option>
+                  <option>Saturday</option>
+                  <option>Sunday</option>
+                </select>
+              </label>
+              <label>
+                <span>Start time</span>
+                <input type="time" name="schedule_time[]" required>
+              </label>
+              <label>
+                <span>Language</span>
+                <select name="schedule_language[]" required>
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>German</option>
+                  <option>Italian</option>
+                  <option>Portuguese</option>
+                </select>
+              </label>
+              <button type="button" class="guide-row-remove" data-remove-schedule aria-label="Remove schedule row">×</button>
+          `;
+          row.querySelector('[name="schedule_day[]"]').value = sch.weekday;
+          row.querySelector('[name="schedule_time[]"]').value = sch.start_time;
+          row.querySelector('[name="schedule_language[]"]').value = sch.language;
+          scheduleBuilder.appendChild(row);
+        });
+
+        // Re-attach remove row event listeners
+        scheduleBuilder.querySelectorAll("[data-remove-schedule]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            btn.closest(".guide-schedule-edit-row")?.remove();
+            refreshScheduleRemoveButtons();
+            validateSchedules();
+          });
+        });
+
+        refreshScheduleRemoveButtons();
+        validateSchedules();
+      } catch (e) {
+        console.error("Failed to parse weekly schedules", e);
+      }
+    }
+
+    // Show the tour's existing photos as deletable thumbnails.
+    renderExistingPhotos(data.tourPhotos);
+    if (tourPhotos) tourPhotos.value = "";
+    updatePhotoCount();
   };
 
   const openAddTourModal = () => {
@@ -987,19 +1689,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const readScheduleRows = () => {
     if (!scheduleBuilder) return [];
+    const durationInput = document.querySelector('[name="tour_duration"]');
+    const globalDuration = Number(durationInput?.value || 90);
     return Array.from(scheduleBuilder.querySelectorAll(".guide-schedule-edit-row")).map((row) => {
       const day = row.querySelector('[name="schedule_day[]"]')?.value || "";
       const start = row.querySelector('[name="schedule_time[]"]')?.value || "00:00";
-      const duration = Number(row.querySelector('[name="schedule_duration[]"]')?.value || 0);
       const language = row.querySelector('[name="schedule_language[]"]')?.value || "";
       return {
         row,
         day,
         start,
-        duration,
+        duration: globalDuration,
         language,
         startMinutes: timeToMinutes(start),
-        endMinutes: timeToMinutes(start) + duration,
+        endMinutes: timeToMinutes(start) + globalDuration,
       };
     });
   };
@@ -1018,7 +1721,18 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const validateSchedules = () => {
+    // While only viewing a tour (read-only), never show schedule conflicts — they
+    // are only meaningful when the guide is actively editing/adding schedules.
+    if (addTourForm?.classList.contains("is-readonly")) {
+      scheduleBuilder?.querySelectorAll(".guide-schedule-edit-row").forEach((r) => r.classList.remove("has-conflict"));
+      setScheduleWarning("", false);
+      return true;
+    }
+
     const rows = readScheduleRows();
+    // When editing an existing tour, its own schedules must not count as "another
+    // tour" — only genuine clashes with the guide's OTHER tours matter.
+    const otherTourSchedules = existingGuideSchedules.filter((e) => e.tour !== currentEditSlug);
     let conflict = "";
 
     rows.forEach((row, index) => {
@@ -1028,7 +1742,11 @@ document.addEventListener("DOMContentLoaded", () => {
         other.language === row.language
       ));
       const rowOverlap = rows.some((other, otherIndex) => otherIndex !== index && schedulesOverlap(row, other));
-      const existingOverlap = existingGuideSchedules.some((existing) => schedulesOverlap(row, {
+
+      // Cross-tour conflicts only happen when the TIME windows overlap — running
+      // a different tour on the same day in the same language is fine as long as
+      // the times don't clash.
+      const existingOverlap = otherTourSchedules.some((existing) => schedulesOverlap(row, {
         day: existing.day,
         startMinutes: timeToMinutes(existing.start),
         endMinutes: timeToMinutes(existing.start) + existing.duration,
@@ -1036,9 +1754,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }));
 
       row.row.classList.toggle("has-conflict", duplicateLanguage || rowOverlap || existingOverlap);
-      if (!conflict && duplicateLanguage) conflict = `${row.day} already has this tour language selected.`;
-      if (!conflict && rowOverlap) conflict = `${row.day} has overlapping schedule times.`;
-      if (!conflict && existingOverlap) conflict = `${row.day} overlaps with another tour already scheduled by this guide.`;
+      if (!conflict && duplicateLanguage) conflict = `${row.day} already has this tour in ${row.language} — same day needs a different language.`;
+      if (!conflict && rowOverlap) conflict = `${row.day} has overlapping start times within this tour.`;
+      if (!conflict && existingOverlap) conflict = `${row.day} overlaps in time with another tour you have scheduled.`;
     });
 
     setScheduleWarning(conflict || "Schedule looks available.", Boolean(conflict));
@@ -1055,21 +1773,31 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const resetScheduleRows = () => {
-    if (!scheduleBuilder) return;
+    if (!scheduleBuilder) return [];
     const rows = Array.from(scheduleBuilder.querySelectorAll(".guide-schedule-edit-row"));
     rows.slice(1).forEach((row) => row.remove());
     const firstRow = scheduleBuilder.querySelector(".guide-schedule-edit-row");
     if (!firstRow) return;
     const daySelect = firstRow.querySelector('[name="schedule_day[]"]');
     const timeInput = firstRow.querySelector('[name="schedule_time[]"]');
-    const durationSelect = firstRow.querySelector('[name="schedule_duration[]"]');
     const languageSelect = firstRow.querySelector('[name="schedule_language[]"]');
     if (daySelect) daySelect.value = "Monday";
     if (timeInput) timeInput.value = "09:00";
-    if (durationSelect) durationSelect.value = "90";
     if (languageSelect) languageSelect.value = "English";
     firstRow.classList.remove("has-conflict");
+    const durationInput = document.querySelector('[name="tour_duration"]');
+    if (durationInput) durationInput.value = "90";
     refreshScheduleRemoveButtons();
+  };
+
+  // Build one horizontal stop row: name input (left) + description (right, max 100).
+  const createStopRow = (name = "") => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.name = "stops[]";
+    input.required = true;
+    input.value = name;
+    return input;
   };
 
   const refreshStopRemoveButton = () => {
@@ -1079,22 +1807,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const resetStops = () => {
     if (!stopsBuilder) return;
-    const defaults = ["Old Town Square", "Astronomical Clock", "Church of Our Lady before Tyn", "Charles Bridge"];
-    const inputs = Array.from(stopsBuilder.querySelectorAll('[name="stops[]"]'));
-    inputs.slice(4).forEach((input) => input.remove());
-    Array.from(stopsBuilder.querySelectorAll('[name="stops[]"]')).forEach((input, index) => {
-      input.value = "";
-      input.placeholder = defaults[index] || `Stop ${index + 1}`;
-      input.required = true;
-      input.disabled = false;
-    });
+    stopsBuilder.innerHTML = "";
+    for (let i = 0; i < 4; i += 1) stopsBuilder.appendChild(createStopRow());
     refreshStopRemoveButton();
   };
 
   openAddTour?.addEventListener("click", () => {
+    currentEditSlug = null;
+    currentTourLocked = false;
     addTourForm?.reset();
     resetScheduleRows();
     resetStops();
+    if (existingPhotos) existingPhotos.innerHTML = "";  // fresh tour: no existing photos
+    updatePhotoCount();
     setAddTourReadonly(false);
     if (addTourTitle) addTourTitle.textContent = "Add New Tour";
     if (addTourSubtitle) addTourSubtitle.textContent = "Create a tour blueprint that can later be saved to the database.";
@@ -1118,20 +1843,28 @@ document.addEventListener("DOMContentLoaded", () => {
     button.addEventListener("click", () => {
       const data = button.dataset;
       const isLocked = data.tourLocked === "true";
+      currentEditSlug = data.tourSlug || null;
+      currentTourLocked = isLocked;
       resetScheduleRows();
       resetStops();
       fillTourDetailsForm(data);
       setAddTourReadonly(true);
       if (addTourTitle) addTourTitle.textContent = data.tourTitle || "Tour Details";
-      if (addTourSubtitle) addTourSubtitle.textContent = "Review the saved tour blueprint. Editable fields are unlocked only when no active bookings exist.";
+      if (addTourSubtitle) addTourSubtitle.textContent = isLocked
+        ? "This tour has bookings and can no longer be edited."
+        : "Review your tour blueprint. You can edit every field while no reservation exists.";
       if (addTourMessage) {
-        addTourMessage.textContent = isLocked ? "🔒 Locked - bookings exist" : "No active bookings. You can edit this tour.";
+        if (isLocked) {
+          addTourMessage.innerHTML = `${LOCK_ICON_SVG} Booking exists - Cannot be edited`;
+        } else {
+          addTourMessage.textContent = "No active bookings. You can edit every field of this tour.";
+        }
         addTourMessage.classList.toggle("is-error", isLocked);
         addTourMessage.classList.toggle("is-ok", !isLocked);
       }
       if (editTourButton) {
         editTourButton.hidden = false;
-        editTourButton.disabled = isLocked;
+        editTourButton.disabled = isLocked;  // locked tours cannot be edited at all
       }
       if (saveTourButton) saveTourButton.hidden = true;
       openAddTourModal();
@@ -1139,6 +1872,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   editTourButton?.addEventListener("click", () => {
+    if (currentTourLocked) return;  // safety: locked tours cannot be edited
     setAddTourReadonly(false);
     if (editTourButton) editTourButton.hidden = true;
     if (saveTourButton) {
@@ -1146,7 +1880,7 @@ document.addEventListener("DOMContentLoaded", () => {
       saveTourButton.textContent = "Save Changes";
     }
     if (addTourMessage) {
-      addTourMessage.textContent = "Editing enabled for this unlocked tour.";
+      addTourMessage.textContent = "Editing enabled for this tour.";
       addTourMessage.classList.remove("is-error");
       addTourMessage.classList.add("is-ok");
     }
@@ -1165,6 +1899,8 @@ document.addEventListener("DOMContentLoaded", () => {
     clone.querySelectorAll("input, select, button").forEach((control) => {
       control.disabled = false;
     });
+    const daySelect = clone.querySelector('[name="schedule_day[]"]');
+    if (daySelect) daySelect.value = "Tuesday";
     const timeInput = clone.querySelector('[name="schedule_time[]"]');
     if (timeInput) timeInput.value = "13:00";
     const languageSelect = clone.querySelector('[name="schedule_language[]"]');
@@ -1188,12 +1924,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   addStop?.addEventListener("click", () => {
     if (!stopsBuilder) return;
-    const input = document.createElement("input");
-    input.type = "text";
-    input.name = "stops[]";
-    input.placeholder = `Stop ${stopsBuilder.querySelectorAll("input").length + 1}`;
-    input.required = true;
-    stopsBuilder.appendChild(input);
+    stopsBuilder.appendChild(createStopRow());
     refreshStopRemoveButton();
   });
 
@@ -1205,14 +1936,17 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshStopRemoveButton();
   });
 
-  tourPhotos?.addEventListener("change", () => {
-    const count = tourPhotos.files?.length || 0;
-    if (photoCount) {
-      photoCount.textContent = count === 1 ? "1 photo selected" : `${count} photos selected`;
-    }
+  tourPhotos?.addEventListener("change", updatePhotoCount);
+
+  // Delete an existing photo thumbnail (removes its keep_photo_ids[] hidden input).
+  existingPhotos?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-photo]");
+    if (!removeButton || removeButton.disabled) return;
+    removeButton.closest(".guide-photo-thumb")?.remove();
+    updatePhotoCount();
   });
 
-  addTourForm?.addEventListener("submit", (event) => {
+  addTourForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const themesSelected = addTourForm.querySelectorAll('[name="themes"]:checked').length;
     const stopsFilled = Array.from(addTourForm.querySelectorAll('[name="stops[]"]')).filter((input) => input.value.trim()).length;
@@ -1220,17 +1954,64 @@ document.addEventListener("DOMContentLoaded", () => {
     const scheduleOk = validateSchedules();
     const messages = [];
 
+    const isEditing = Boolean(currentEditSlug);
     if (!themesSelected) messages.push("Select at least one tour theme.");
     if (stopsFilled < 4) messages.push("Add at least 4 tour stops.");
-    if (photosSelected < 5) messages.push("Upload at least 5 photos.");
+    if (isEditing) {
+      // On edit, the kept existing photos plus any new uploads must total exactly 5.
+      const totalPhotos = keptPhotoCount() + photosSelected;
+      if (totalPhotos !== 5) {
+        messages.push(`A tour must have exactly 5 photos — you currently have ${totalPhotos} (${keptPhotoCount()} kept, ${photosSelected} new).`);
+      }
+    } else if (photosSelected !== 5) {
+      messages.push("Upload exactly 5 photos.");
+    }
     if (!scheduleOk) messages.push("Fix schedule conflicts before saving.");
 
+    if (messages.length > 0) {
+      if (addTourMessage) {
+        addTourMessage.textContent = messages[0];
+        addTourMessage.classList.add("is-error");
+        addTourMessage.classList.remove("is-ok");
+      }
+      return;
+    }
+
     if (addTourMessage) {
-      addTourMessage.textContent = messages[0] || "Tour draft is ready to be saved.";
-      addTourMessage.classList.toggle("is-error", messages.length > 0);
-      addTourMessage.classList.toggle("is-ok", messages.length === 0);
+      addTourMessage.textContent = "Saving tour draft...";
+      addTourMessage.classList.remove("is-error", "is-ok");
+    }
+
+    try {
+      const formData = new FormData(addTourForm);
+      const endpoint = currentEditSlug
+        ? `/guide/tours/${encodeURIComponent(currentEditSlug)}`
+        : addTourForm.action;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Failed to save tour.");
+      }
+      if (addTourMessage) {
+        addTourMessage.textContent = "Tour saved successfully!";
+        addTourMessage.classList.remove("is-error");
+        addTourMessage.classList.add("is-ok");
+      }
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      if (addTourMessage) {
+        addTourMessage.textContent = error.message;
+        addTourMessage.classList.add("is-error");
+        addTourMessage.classList.remove("is-ok");
+      }
     }
   });
+
+  const durationInput = document.querySelector('[name="tour_duration"]');
+  durationInput?.addEventListener("change", validateSchedules);
 
   const dateModal = document.querySelector("[data-date-modal]");
   const openDatePicker = document.querySelector("[data-open-date-picker]");
@@ -1362,8 +2143,16 @@ document.addEventListener("DOMContentLoaded", () => {
     visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
     renderCalendar();
   });
+  // Publish the chosen range so the homepage tour filters can read it.
+  const publishDateRange = () => {
+    window.walkPragueDateRange = { start: selectedStart, end: selectedEnd || selectedStart };
+    window.dispatchEvent(new CustomEvent("walkprague:datechange"));
+  };
+  window.walkPragueDateRange = { start: null, end: null };
+
   applyDate?.addEventListener("click", () => {
     updateDateLabel();
+    publishDateRange();
     hideDateModal();
   });
   clearDate?.addEventListener("click", () => {
@@ -1371,6 +2160,7 @@ document.addEventListener("DOMContentLoaded", () => {
     selectedEnd = null;
     updateDateSelection();
     if (dateLabel) dateLabel.textContent = "Select dates";
+    publishDateRange();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hideDateModal();
