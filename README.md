@@ -22,6 +22,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+# URL to access the app in browser 
+
+https://glorianbici1234.pythonanywhere.com
+
 # Running the app and accessing it in browser 
 
 The following command needs to be ran in app.py terminal : 
