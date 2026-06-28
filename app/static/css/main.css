@@ -1,3 +1,5 @@
+/* Walk Prague — main stylesheet. Organised by component; the labels below mark each region. */
+
 :root {
   --navy: #121b2d;
   --navy-deep: #07101f;
@@ -61,6 +63,8 @@ input {
   font: inherit;
 }
 
+
+/* HEADER , NAVBAR , BRAND (shared across all pages) */
 .site-header {
   position: sticky;
   top: 0;
@@ -88,8 +92,7 @@ input {
   font-weight: 950;
 }
 
-/* Logo shown to logged-in guides/admins: present for identity, but not a link
-   (keeps staff out of the public booking flow). */
+/* Logo shown to logged-in guides/admins: present for identity, but not a link. */
 .brand-static {
   cursor: default;
 }
@@ -150,6 +153,8 @@ input {
   color: #fff;
 }
 
+
+/* HOMEPAGE : hero, tour filters, tour cards, reviews, FAQ */
 .hero {
   position: relative;
   min-height: calc(100vh - 74px);
@@ -684,7 +689,6 @@ input {
   padding: 0.38rem 0.65rem;
   color: #fff !important;
   font-weight: 950;
-  /* Single static colour — the rating is a placeholder for now (no grading). */
   background: #18a957;
 }
 
@@ -971,6 +975,8 @@ input {
   background: var(--navy);
 }
 
+
+/* TOUR DETAIL PAGE : gallery, facts, stops, conditions, booking calendar, guide profile, reviews */
 .tour-gallery img,
 .tour-gallery-slide {
   position: absolute;
@@ -1664,6 +1670,7 @@ input {
   color: #15803d;
 }
 
+/* Tour detail: guest booking */
 .guest-booking {
   display: grid;
   gap: 0.9rem;
@@ -2096,6 +2103,8 @@ input {
   color: #555;
 }
 
+
+/* AUTH PAGES : sign in / register / admin access */
 .provider-tour-grid b {
   margin-bottom: 1.3rem;
   font-size: 1.22rem;
@@ -2185,6 +2194,8 @@ input {
   color: #e87500;
 }
 
+
+/* FOOTER (shared across all pages) */
 .footer-main {
   display: grid;
   grid-template-columns: 1.5fr repeat(3, 1fr);
@@ -2797,6 +2808,8 @@ input {
   outline: none;
 }
 
+
+/* GUIDE DASHBOARD : tours, timetable, reports, history, add/edit-tour modal, photo editor */
 .guide-language-menu button.is-selected {
   background: #e8f7ff;
   color: var(--text);
@@ -4001,7 +4014,7 @@ input {
   font-weight: 650;
 }
 
-/* Guide hero: email + language / specialty pills (no emojis) */
+/* Guide hero: email + language / specialty pills */
 .guide-hero-email {
   display: inline-block;
   margin: 0.9rem 0 1.3rem;
@@ -4044,7 +4057,7 @@ input {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  background: #d7141a; /* Czech flag red */
+  background: #d7141a;
   color: #fff;
   padding: 0.4rem 0.95rem;
   font-weight: 800;
@@ -4223,6 +4236,7 @@ input {
   color: var(--text);
 }
 
+/* Guide: timetable & expected reservations */
 .guide-ledger-card {
   padding: 2rem;
 }
@@ -4482,6 +4496,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   color: #ea5a2a;
 }
 
+/* Guide: post-tour reports */
 .guide-report-body label:not(.guide-upload-box) {
   display: grid;
   gap: 0.7rem;
@@ -5231,6 +5246,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   transform: translateY(-1px);
 }
 
+/* Guide: add / edit tour modal */
 .guide-add-tour-dialog {
   width: min(1080px, 100%);
 }
@@ -5336,6 +5352,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   gap: 0.8rem;
 }
 
+/* Guide: weekly-schedule builder */
 .guide-schedule-edit-row {
   display: grid;
   grid-template-columns: 1.1fr 0.85fr 0.9fr 1fr 38px;
@@ -5455,6 +5472,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   gap: 0.75rem;
 }
 
+/* Guide: tour photo editor */
 .guide-photo-upload {
   border: 2px dashed #d9e2ee;
   border-radius: 14px;
@@ -5563,86 +5581,9 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   margin-right: auto;
 }
 
-@media (max-width: 1180px) {
 
-  .guide-overview-layout,
-  .guide-timetable-layout {
-    grid-template-columns: 1fr;
-  }
 
-  .guide-tour-grid,
-  .guide-pending-reports,
-  .guide-past-report-list,
-  .participant-reservation-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .participant-profile-hero {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .guide-dashboard-body .guide-nav {
-    grid-template-columns: 1fr;
-    gap: 0.9rem;
-  }
-
-  .guide-dashboard-body .guide-welcome {
-    justify-self: start;
-  }
-
-  .guide-hero-card.compact {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-stat-grid,
-  .guide-tour-grid,
-  .guide-pending-reports,
-  .guide-past-report-list,
-  .participant-reservation-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-timetable-layout .guide-schedule-row-v2 {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-section-heading-row,
-  .guide-schedule-actions {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .guide-form-section,
-  .guide-schedule-builder,
-  .guide-schedule-actions,
-  .guide-option-scroll,
-  .guide-stops-builder,
-  .guide-stops-builder+.guide-muted-button,
-  .guide-stop-actions {
-    grid-column: 1 / -1;
-  }
-
-  .guide-schedule-edit-row,
-  .guide-stops-builder {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-form-section {
-    grid-template-columns: 1fr;
-  }
-
-  .participant-reservations>header {
-    display: grid;
-    align-items: start;
-  }
-
-  .participant-reservation-card dl div {
-    grid-template-columns: 1fr;
-    gap: 0.2rem;
-  }
-}
+/* ADMIN DASHBOARD : statistics, registered guides, all tours, reservations */
 
 .date-modal {
   position: fixed;
@@ -5952,6 +5893,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   align-items: stretch;
 }
 
+/* Admin: overview statistics */
 .admin-stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6166,6 +6108,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   padding: 0 2rem;
 }
 
+/* Admin: registered guides list */
 .admin-guide-row {
   display: flex;
   align-items: center;
@@ -6269,6 +6212,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   padding: 0.62rem 1rem;
 }
 
+/* Admin: tours & reservations tables */
 .admin-table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -6464,219 +6408,9 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   font-weight: 750;
 }
 
-@media (max-width: 1200px) {
-  .nav-bar {
-    grid-template-columns: 1fr;
-    padding: 1.2rem;
-  }
 
-  .main-nav,
-  .auth-nav {
-    justify-content: center;
-  }
 
-  .hero-content {
-    width: min(900px, 90vw);
-  }
-
-  .hero-stats {
-    position: relative;
-    right: auto;
-    top: auto;
-    padding: 0 7vw 4rem;
-  }
-
-  .tour-section {
-    grid-template-columns: 1fr;
-  }
-
-  .filters {
-    position: static;
-  }
-
-  .tour-detail-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .tour-booking-panel {
-    position: static;
-  }
-
-  .provider-tour-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .steps,
-  .footer-main {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .guide-dashboard-hero,
-  .guide-dashboard-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-dashboard-sidebar {
-    position: static;
-  }
-
-  .report-form {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-overview-grid,
-  .admin-language-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-stat-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .admin-guide-profile {
-    grid-template-columns: 90px 1fr;
-  }
-
-  .admin-guide-profile .guide-side-info {
-    grid-column: 1 / -1;
-  }
-
-  .steps::before {
-    display: none;
-  }
-
-  .steps {
-    margin-top: 3rem;
-  }
-}
-
-@media (max-width: 760px) {
-
-  .main-nav,
-  .auth-nav,
-  .hero-actions,
-  .trust-band,
-  .tour-card,
-  .guide-row,
-  .steps,
-  .footer-main {
-    grid-template-columns: 1fr;
-  }
-
-  .site-footer {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-
-  .footer-copy {
-    justify-self: center;
-  }
-
-  .main-nav,
-  .auth-nav,
-  .hero-actions {
-    flex-direction: column;
-  }
-
-  .hero h1 {
-    font-size: 3rem;
-  }
-
-  .hero-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .tour-gallery,
-  .tour-detail-layout,
-  .guide-profile-card,
-  .detail-reviews,
-  .provider-tours {
-    width: calc(100% - 1.5rem);
-  }
-
-  .tour-gallery {
-    min-height: 300px;
-  }
-
-  .tour-breadcrumbs {
-    left: 1rem;
-    right: 1rem;
-    font-size: 0.85rem;
-  }
-
-  .tour-summary,
-  .tour-facts,
-  .tour-conditions>div,
-  .guide-profile-grid,
-  .provider-tour-grid,
-  .guide-dashboard-summary,
-  .schedule-row-head,
-  .schedule-row-details summary,
-  .reservation-list li {
-    grid-template-columns: 1fr;
-  }
-
-  .guide-dashboard-hero,
-  .guide-dashboard-layout {
-    width: calc(100% - 1.5rem);
-  }
-
-  .guide-panel-head,
-  .guide-tour-card>header,
-  .report-card>header {
-    display: grid;
-  }
-
-  .schedule-row-head {
-    display: none;
-  }
-
-  .schedule-row-details summary strong {
-    justify-self: start;
-  }
-
-  .activity-includes ul {
-    columns: 1;
-  }
-
-  .detail-review-track {
-    grid-auto-columns: minmax(270px, 88vw);
-  }
-
-  .admin-topbar,
-  .admin-card-head,
-  .admin-guide-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .admin-shell {
-    width: calc(100% - 1.5rem);
-  }
-
-  .admin-search input,
-  .admin-select select {
-    min-width: 100%;
-    width: 100%;
-  }
-
-  .admin-guide-actions {
-    justify-items: start;
-  }
-
-  .admin-language-row {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-stat-grid,
-  .admin-guide-profile {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   Flash / alert messages (used on auth pages for server-side errors)
-   --------------------------------------------------------------------------- */
+/* Flash / alert messages (used on auth pages for server-side errors) */
 .auth-alert {
   width: min(100%, 540px);
   margin: 0 auto 1.1rem;
@@ -6713,9 +6447,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 
-/* ---------------------------------------------------------------------------
-   Utility classes replacing former inline styles (no inline CSS in markup).
-   --------------------------------------------------------------------------- */
+/* Utility classes replacing former inline styles (no inline CSS in markup). */
 .auth-field--spaced {
   margin-top: 15px;
 }
@@ -6741,9 +6473,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   flex: 1;
 }
 
-/* ---------------------------------------------------------------------------
-   Guide registration: specialty + profile-photo picker
-   --------------------------------------------------------------------------- */
+/* Guide registration: specialty + profile-photo picker */
 .field-optional {
   font-style: normal;
   font-weight: 600;
@@ -6845,9 +6575,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   pointer-events: none;
 }
 
-/* ---------------------------------------------------------------------------
-   Guide tour edit: locked state (disabled Edit button + grey lock message)
-   --------------------------------------------------------------------------- */
+/* Guide tour edit: locked state (disabled Edit button + grey lock message) */
 .guide-orange-button:disabled,
 .guide-orange-button[disabled] {
   background: #e2e8f0;
@@ -6867,6 +6595,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   flex-shrink: 0;
   vertical-align: middle;
 }
+
 /* Inline line-style icons (replace emojis). Inherit colour, scale with text. */
 .ico {
   width: 1em;
@@ -6897,13 +6626,12 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   margin: 0 0.15rem;
 }
 
-/* ===========================================================================
-   Tour-detail availability calendar (weekly, arrow-paged)
-   =========================================================================== */
+/* Tour-detail availability calendar (weekly, arrow-paged) */
 .cal {
   margin-bottom: 1.2rem;
 }
 
+/* Tour detail: booking calendar */
 .cal-head {
   display: flex;
   align-items: center;
@@ -6911,7 +6639,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   margin-bottom: 1rem;
 }
 
-.cal-head > strong {
+.cal-head>strong {
   flex: 1;
   text-align: center;
   background: #eef1f5;
@@ -6951,8 +6679,13 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   height: 1.15rem;
 }
 
-.cal-chevron-left { transform: rotate(90deg); }
-.cal-chevron-right { transform: rotate(-90deg); }
+.cal-chevron-left {
+  transform: rotate(90deg);
+}
+
+.cal-chevron-right {
+  transform: rotate(-90deg);
+}
 
 .cal-weekdays,
 .cal-days {
@@ -6998,6 +6731,8 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   background: #eef1f5;
 }
 
+
+/* SHARED : tour-detail booking calendar, time slots, flags */
 .cal-day.scheduled::after {
   content: "";
   position: absolute;
@@ -7061,6 +6796,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   gap: 0.6rem;
 }
 
+/* Tour detail: time slots */
 .time-slot {
   display: grid;
   gap: 0.1rem;
@@ -7090,8 +6826,13 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   font-weight: 800;
 }
 
-.time-slot-count.available { color: #15a34a; }
-.time-slot-count.full { color: #94a3b8; }
+.time-slot-count.available {
+  color: #15a34a;
+}
+
+.time-slot-count.full {
+  color: #94a3b8;
+}
 
 .time-slot.active {
   border-color: #f08109;
@@ -7108,9 +6849,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   cursor: not-allowed;
 }
 
-/* ---------------------------------------------------------------------------
-   Circular language flags + clamped tour-card descriptions
-   --------------------------------------------------------------------------- */
+/* Circular language flags + clamped tour-card descriptions */
 .lang-flag {
   width: 1.3em;
   height: 1.3em;
@@ -7144,7 +6883,7 @@ button.guide-dark-button.mark-as-done-btn:focus-visible {
   overflow: hidden;
 }
 
-/* Admin tables: show ~5 rows then scroll, with a sticky header row. */
+/* Admin tables: show 5 rows then scroll, with a sticky header row. */
 .admin-table-wrap.admin-scroll {
   max-height: 320px;
   overflow-y: auto;

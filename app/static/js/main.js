@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     profilePhotoRemove.classList.add("is-hidden");
   });
 
+  // swap the navbar links depending on who is logged in (participant / guide / admin)
   const updateRoleLinks = (role) => {
     document.querySelectorAll("[data-role-target]").forEach((link) => {
       const url = new URL(link.href, window.location.href);
@@ -55,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // homepage hero - rotating background images
   const slides = Array.from(document.querySelectorAll(".hero-slide"));
   let currentSlide = 0;
 
@@ -66,6 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 2000);
   }
 
+  // reviews slider arrows
   const reviewTrack = document.querySelector("[data-review-track]");
   const nextReview = document.querySelector("[data-review-next]");
   const prevReview = document.querySelector("[data-review-prev]");
@@ -315,6 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // click a tour card to open its page
   document.querySelectorAll("[data-tour-url]").forEach((card) => {
     const openTour = () => {
       const target = card.dataset.tourUrl;
@@ -337,6 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // tour page - photo gallery
   const gallery = document.querySelector("[data-tour-gallery]");
   if (gallery) {
     const gallerySlides = Array.from(gallery.querySelectorAll("[data-gallery-slide]"));
@@ -437,6 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // tour page - the weekly calendar (pick a date + a time slot)
   if (calendar) {
     const availability = JSON.parse(calendar.dataset.availability || "{}");
     const calMonth = calendar.querySelector("[data-cal-month]");
@@ -614,6 +620,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // tour page - add up to 3 guests to a booking
   const guestBooking = document.querySelector("[data-guest-booking]");
   const addGuestToggle = document.querySelector("[data-add-guest-toggle]");
   const addGuestSymbol = document.querySelector("[data-add-guest-symbol]");
@@ -697,6 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateBookingCapacity();
   });
 
+  // tour page - "view more" stops toggle
   const stopsToggle = document.querySelector("[data-stops-toggle]");
   stopsToggle?.addEventListener("click", () => {
     const extraStops = Array.from(document.querySelectorAll(".extra-stop"));
@@ -705,6 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopsToggle.textContent = opening ? "View less" : "View more";
   });
 
+  // participant profile - cancel a booking
   document.querySelectorAll("[data-cancel-reservation]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.disabled) return;
@@ -726,6 +735,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // sign in - switch between participant and guide
   const authRoleButtons = Array.from(document.querySelectorAll("[data-auth-role]"));
   const authRoleInput = document.querySelector("[data-auth-role-input]");
   const guideFields = document.querySelector("[data-guide-fields]");
@@ -822,6 +832,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Do NOT call event.preventDefault() — the POST will reach the server
   });
 
+  // register - switch between participant and guide
   const registerRoleButtons = Array.from(document.querySelectorAll("[data-register-role]"));
   const registerRoleInput = document.querySelector("[data-register-role-input]");
   const registerGuideFields = document.querySelector("[data-register-guide-fields]");
@@ -931,6 +942,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Do NOT call event.preventDefault()
   });
 
+  // register (guide) - pick the languages you speak
   const guideLanguageSelect = document.querySelector("[data-guide-language-select]");
   const guideLanguageToggle = document.querySelector("[data-guide-language-toggle]");
   const guideLanguagePlaceholder = document.querySelector("[data-guide-language-placeholder]");
@@ -1014,6 +1026,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const guideSpecialtyApply = document.querySelector("[data-guide-specialty-apply]");
   const selectedGuideSpecialties = new Set();
 
+  // register (guide) - pick your specialties
   const renderGuideSpecialties = () => {
     guideSpecialtyOptions.forEach((option) => {
       option.classList.toggle("is-selected", selectedGuideSpecialties.has(option.dataset.value));
@@ -1080,6 +1093,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // show / hide password
   document.querySelectorAll("[data-toggle-password]").forEach((button) => {
     button.addEventListener("click", () => {
       const passwordInput = button.closest(".password-wrap")?.querySelector("input");
@@ -1091,6 +1105,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // admin - hold a tour row to open it
   const adminHold = document.querySelector("[data-admin-hold]");
   let adminHoldTimer = null;
   const clearAdminHold = () => {
@@ -1118,6 +1133,7 @@ document.addEventListener("DOMContentLoaded", () => {
   adminHold?.addEventListener("pointercancel", clearAdminHold);
   adminHold?.addEventListener("click", (event) => event.preventDefault());
 
+  // participant profile - switch tabs
   const dashboardTabs = Array.from(document.querySelectorAll("[data-dashboard-tab]"));
   const switchDashboardTab = (tabName) => {
     if (!tabName) return;
@@ -1133,6 +1149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     button.addEventListener("click", () => switchDashboardTab(button.dataset.dashboardTab));
   });
 
+  // admin - switch tabs
   const adminTabs = Array.from(document.querySelectorAll("[data-admin-tab]"));
   const switchAdminTab = (tabName) => {
     if (!tabName) return;
@@ -1183,6 +1200,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wrap.style.maxHeight = `${Math.round(fourthBottom - top)}px`;
   });
 
+  // admin - open a guide details popup
   const guideDetailButtons = Array.from(document.querySelectorAll("[data-guide-detail]"));
   const guideModal = document.querySelector("[data-guide-modal]");
   const guideModalClose = document.querySelector("[data-guide-modal-close]");
@@ -1199,8 +1217,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const languageFlags = {
     English: "🇬🇧",
     German: "🇩🇪",
-    French: "🇫🇷",
-    Czech: "🇨🇿",
     Spanish: "🇪🇸",
     Italian: "🇮🇹",
     Portuguese: "🇵🇹"
@@ -1313,6 +1329,7 @@ document.addEventListener("DOMContentLoaded", () => {
     guideReportModal?.setAttribute("aria-hidden", "true");
   };
 
+  // guide dashboard - "view participants" for a date
   document.querySelectorAll("[data-guide-reservations]").forEach((button) => {
     button.addEventListener("click", () => {
       const data = button.dataset;
@@ -1387,6 +1404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // guide dashboard - file a post-tour report
   document.querySelectorAll("[data-guide-report]").forEach((button) => {
     button.addEventListener("click", () => {
       if (guideReportTitle) guideReportTitle.textContent = `Report Attendance: ${button.dataset.reportTitle}`;
@@ -1440,6 +1458,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === guideReportModal) closeGuideReportModal();
   });
 
+  // guide dashboard - add / edit a tour (big form: stops, schedule, photos, validation)
   const addTourModal = document.querySelector("[data-add-tour-modal]");
   const openAddTour = document.querySelector("[data-open-add-tour]");
   const closeAddTourButtons = Array.from(document.querySelectorAll("[data-close-add-tour]"));
@@ -1839,6 +1858,7 @@ document.addEventListener("DOMContentLoaded", () => {
     validateSchedules();
   });
 
+  // open a tour "more details" (view, then edit if it has no bookings)
   document.querySelectorAll("[data-guide-tour-details]").forEach((button) => {
     button.addEventListener("click", () => {
       const data = button.dataset;
@@ -2013,6 +2033,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const durationInput = document.querySelector('[name="tour_duration"]');
   durationInput?.addEventListener("change", validateSchedules);
 
+  // homepage - date range picker
   const dateModal = document.querySelector("[data-date-modal]");
   const openDatePicker = document.querySelector("[data-open-date-picker]");
   const closeDatePicker = document.querySelector("[data-close-date-picker]");
@@ -2166,6 +2187,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.key === "Escape") hideDateModal();
   });
 
+  // FAQ accordion toggle
   const faqButton = document.querySelector("[data-faq-toggle]");
   const faqList = document.querySelector(".faq-card ul");
   const extraFaqs = [
