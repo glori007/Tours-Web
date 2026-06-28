@@ -1,7 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-
 from flask import current_app, g
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -9,10 +8,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 DB_NAME = "walk_prague.sqlite3"
 
-# The three account types are stored in three separate tables.
 ROLE_TABLES = {"guide": "guides", "participant": "participants", "admin": "admins"}
 
 
+# Database connection
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(current_app.config["DATABASE"])
@@ -27,9 +26,7 @@ def close_db(_error=None):
         db.close()
 
 
-# ---------------------------------------------------------------------------
 # Flask-Login User model
-# ---------------------------------------------------------------------------
 
 class User(UserMixin):
     """Wraps a row from one of the three account tables (guides / participants /
@@ -51,8 +48,8 @@ class User(UserMixin):
         return f"{self.first_name} {self.last_name}"
 
 
+# Authentication & user lookup
 def get_user_by_id(token):
-    """Load a User from a "role:id" token (called by Flask-Login user_loader)."""
     try:
         role, raw_id = str(token).split(":", 1)
         user_id = int(raw_id)
@@ -66,7 +63,6 @@ def get_user_by_id(token):
 
 
 def authenticate_user(email, password, expected_role):
-    """Return a User if email/password match an account of the expected role."""
     table = ROLE_TABLES.get(expected_role)
     if not table:
         return None
@@ -92,6 +88,7 @@ VALID_SPECIALTIES = {
 DEFAULT_PROFILE_PHOTO = "/static/img/default-profile.png"
 
 
+# Registration, profile photos & tour images
 def get_profile_photo_url(raw_photo):
     raw_photo = (raw_photo or "").strip()
     if raw_photo.startswith("http"):
@@ -107,13 +104,11 @@ def get_profile_photo_url(raw_photo):
         full = static_dir / rel
         if full.exists():
             return f"/static/{rel}"
-        # Accept any common image extension for the same path stem, so a guide
-        # photo saved as .jpg/.jpeg/.png/.webp all resolve without code changes.
+
         for ext in (".jpg", ".jpeg", ".png", ".webp"):
             alt = full.with_suffix(ext)
             if alt.exists():
                 return f"/static/{alt.relative_to(static_dir).as_posix()}"
-        # File not present yet → default avatar (no broken image).
         return DEFAULT_PROFILE_PHOTO
     except RuntimeError:
         return f"/static/{rel}"
@@ -123,9 +118,7 @@ DEFAULT_TOUR_IMAGE = "/static/img/prague-castle.svg"
 
 
 def resolve_tour_image(raw):
-    """Return a usable URL for a stored tour image path. Falls back to a generic
-    placeholder until the real file is uploaded, and accepts any common image
-    extension for the same path stem."""
+    """Return a usable URL for a stored tour image path."""
     raw = (raw or "").strip()
     if raw.startswith("http"):
         return raw
@@ -147,11 +140,7 @@ def resolve_tour_image(raw):
 
 def register_user(role, first_name, last_name, email, password, languages=None,
                   profile_photo_file=None, specialties=None):
-    """
-    Create a new guide or participant account.
-    Returns the new User on success.
-    Raises ValueError with a human-readable message on validation failure.
-    """
+
     first_name = first_name.strip()
     last_name = last_name.strip()
     email = email.strip().lower()
@@ -177,10 +166,7 @@ def register_user(role, first_name, last_name, email, password, languages=None,
             raise ValueError(f"Invalid specialty(ies): {', '.join(bad_spec)}")
 
     db = get_db()
-    # Email must be unique *within a role* only: the same person may hold both a
-    # participant account and a guide account under the same email (they are two
-    # separate accounts, in two separate tables, and the role chosen at sign-in
-    # decides which one they log into).
+
     role_table = ROLE_TABLES[role]
     if db.execute(f"SELECT 1 FROM {role_table} WHERE email = ?", (email,)).fetchone():
         raise ValueError(f"A {role} account with that email address already exists.")
@@ -230,7 +216,9 @@ def register_user(role, first_name, last_name, email, password, languages=None,
     return User(row, "guide")
 
 
+# Database setup, schema & sample data
 def init_backend(app):
+    """Wire the database into the Flask app: set the DB path, create the schema, seed sample data, and register the connection teardown."""
     instance_path = Path(app.instance_path)
     instance_path.mkdir(parents=True, exist_ok=True)
     app.config.setdefault("DATABASE", str(instance_path / DB_NAME))
@@ -399,14 +387,11 @@ def seed_database():
     if db.execute("SELECT COUNT(*) FROM guides").fetchone()[0]:
         return
 
-    # --- Platform administrator (kept so the admin dashboard works) ---
     db.execute(
         "INSERT INTO admins (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)",
         ("Platform", "Administrator", "admin@walkprague.cz", generate_password_hash("password123")),
     )
 
-    # --- Guides. Tours and participants are added later by the instructor. ---
-    # Profile photos live under app/static/img/guides/ (see README).
     guides = [
         {
             "first_name": "Tomas", "last_name": "Novak",
@@ -460,7 +445,6 @@ def seed_database():
     seed_past_data()
 
 
-# weekday: Monday=0 ... Sunday=6
 SEED_TOURS = [
     {
         "guide": 1, "slug": "complete-prague-tour", "title": "Complete Prague Tour",
@@ -669,9 +653,6 @@ SEED_TOURS = [
 
 
 def seed_tours():
-    """Insert the platform's sample tours. Each tour expects 5 photos named
-    tour{n}_{m}.jpg in static/img/tours/ (n = tour number, m = 1..5). Until those
-    files are uploaded, a placeholder image is shown automatically."""
     db = get_db()
     for n, t in enumerate(SEED_TOURS, start=1):
         cur = db.execute(
@@ -706,18 +687,7 @@ def seed_tours():
             [(tour_id, f"img/tours/tour{n}_{m}.jpg", 1 if m == 1 else 0) for m in range(1, 6)],
         )
     db.commit()
-    # Occurrences are created lazily (on booking), so nothing to pre-generate
-    # here — the seeded reservations below will materialise the dates they need.
 
-
-# Sample participants with upcoming reservations. Dates use the week that
-# starts Tuesday 30 June 2026 (Tue=06-30, Wed=07-01, Thu=07-02, Fri=07-03,
-# and Mon falls on the following Monday 07-06). Each booking is matched to the
-# real tour occurrence by tour slug + date + start time + language.
-# Each booking is (slug, date, start_time, language, guests) where guests is a
-# list of (first, last) for additional people (0-3, so the party stays within
-# the 1-4 people limit). Guests are spread across participants with varying
-# counts (1, 2 and 3). Dates: Mon=06-29, Tue=06-30, Wed=07-01, Thu=07-02, Fri=07-03.
 SEED_PARTICIPANTS = [
     {
         "first": "Anna", "last": "Walker",
@@ -730,7 +700,6 @@ SEED_PARTICIPANTS = [
             ("panoramic-vltava-river-cruise", "2026-07-01", "09:00", "English", []),
             ("prague-free-tour-old-town-jewish-quarter-clock", "2026-07-02", "11:00", "English", []),
             ("classic-prague-castle-free-tour", "2026-07-03", "10:00", "English", []),
-            # Sunday 5 July departure used to fill "Original Free Tour" to capacity.
             ("original-free-tour-of-prague", "2026-07-05", "10:00", "English",
              [("Nora", "Klein"), ("Aldo", "Ricci"), ("Sven", "Park")]),
         ],
@@ -775,7 +744,6 @@ SEED_PARTICIPANTS = [
 
 
 def seed_participants():
-    """Insert the sample participants and their upcoming reservations (some with guests)."""
     db = get_db()
     for p in SEED_PARTICIPANTS:
         cur = db.execute(
@@ -787,9 +755,6 @@ def seed_participants():
             hours, minutes = map(int, start_time.split(":"))
             year, month, day = map(int, date.split("-"))
             starts_at = datetime(year, month, day, hours, minutes)
-            # Match the schedule by weekday too: a tour may run the same time +
-            # language on several weekdays, so start_time + language alone is
-            # ambiguous.
             schedule = db.execute(
                 """
                 SELECT s.id
@@ -814,13 +779,7 @@ def seed_participants():
     db.commit()
 
 
-# Two extra participants whose bookings live in the PAST, so the instructor can
-# test the post-tour reporting flow without waiting for a real date to pass.
-# Each tuple is (slug, language, start_time, weeks_ago, guests, attended):
-#   - weeks_ago: how many weeks before today the departure took place (lands in
-#     the previous month).
-#   - guests: extra people on the reservation.
-#   - attended: how many actually showed up (drives the guide's report).
+
 SEED_PAST_PARTICIPANTS = [
     {
         "first": "Lukas", "last": "Horak",
@@ -848,9 +807,6 @@ SEED_PAST_PARTICIPANTS = [
     },
 ]
 
-# Departures whose most recent occurrence has already STARTED (within the last
-# week) but are not yet reported, so the guide's "Mark as done" button is live
-# for them. (slug, language, start_time, booker_email, guests).
 SEED_MARKABLE = [
     ("classic-prague-castle-free-tour", "English", "10:00", "lukas.horak@gmail.com",
      [("Eva", "Horak")]),
@@ -876,8 +832,6 @@ def _schedule_for(slug, language, start_time):
 
 
 def _past_starts_at(weekday, start_time, weeks_ago):
-    """A concrete datetime ``weeks_ago`` weeks before today, on the schedule's
-    weekday and start time (so it matches a real recurring departure)."""
     hours, minutes = map(int, start_time.split(":"))
     now = datetime.now()
     days_back = (now.weekday() - weekday) % 7
@@ -888,8 +842,6 @@ def _past_starts_at(weekday, start_time, weeks_ago):
 
 
 def _recent_started_starts_at(weekday, start_time):
-    """The most recent departure on the schedule's weekday that has already
-    started (strictly in the past, within the last 7 days)."""
     hours, minutes = map(int, start_time.split(":"))
     now = datetime.now()
     days_back = (now.weekday() - weekday) % 7
@@ -902,9 +854,6 @@ def _recent_started_starts_at(weekday, start_time):
 
 
 def seed_past_data():
-    """Seed the two past-data participants: completed + reported tours (for Tours
-    History and Past Reports) and a couple of this-week departures whose guides
-    can still click "Mark as done"."""
     db = get_db()
 
     def participant_id_for(email):
@@ -964,21 +913,9 @@ def seed_past_data():
     db.commit()
 
 
-# ---------------------------------------------------------------------------
 # Lazy occurrences
-#
-# A tour_occurrence (a dated instance of a recurring weekly schedule) is NOT
-# pre-generated for every possible date. Instead the bookable dates shown to
-# visitors are computed on the fly from the weekly rules, and an occurrence row
-# is materialised only when it is actually needed — i.e. when a participant
-# books that date (or the guide marks it done). This keeps the table small even
-# with thousands of tours and means the calendar never runs out of future dates.
-# ---------------------------------------------------------------------------
 
 def tour_schedule_departures(tour_id, days_forward=120, from_dt=None):
-    """Compute the upcoming departures for a tour straight from its weekly
-    schedule. Returns a list of ``(schedule_row, starts_at_datetime)`` ordered by
-    date — no occurrence rows are read or created."""
     db = get_db()
     now = from_dt or datetime.now()
     horizon = now + timedelta(days=days_forward)
@@ -1003,8 +940,6 @@ def tour_schedule_departures(tour_id, days_forward=120, from_dt=None):
 
 
 def reservation_people_for_slot(schedule_id, starts_at_iso):
-    """People (participants + guests) already booked on a departure identified by
-    (schedule, start datetime). A slot with no occurrence row yet returns 0."""
     row = get_db().execute(
         """
         SELECT
@@ -1026,9 +961,6 @@ def reservation_people_for_slot(schedule_id, starts_at_iso):
 
 
 def get_or_create_occurrence(schedule_id, starts_at):
-    """Return the occurrence id for (schedule, start datetime), creating the row
-    on demand. Validates that the date actually belongs to the schedule so a
-    visitor cannot book an arbitrary date. Does not commit — the caller does."""
     db = get_db()
     schedule = db.execute(
         "SELECT * FROM tour_schedules WHERE id = ? AND active = 1", (schedule_id,)
@@ -1055,6 +987,7 @@ def get_or_create_occurrence(schedule_id, starts_at):
     ).fetchone()["id"]
 
 
+# Public tour listing & tour detail (read models)
 def full_name(row):
     return f"{row['first_name']} {row['last_name']}"
 
@@ -1097,8 +1030,6 @@ def tour_cover(tour_id):
         "SELECT image_path FROM tour_photos WHERE tour_id = ? ORDER BY is_cover DESC, id LIMIT 1",
         (tour_id,),
     ).fetchone()
-    # A tour always has 5 photos (enforced on create/edit), so the fallback is
-    # effectively unreachable; it points at the same placeholder as DEFAULT_TOUR_IMAGE.
     return row["image_path"] if row else "img/prague-castle.svg"
 
 
@@ -1128,8 +1059,6 @@ def get_public_tours():
         dates = sorted({dt.strftime("%Y-%m-%d") for _, dt in departures})
         start_times = sorted({sch["start_time"] for sch, _ in departures})
 
-        # People already booked on this tour's existing occurrences (one query),
-        # so remaining places per date can be computed without a query per slot.
         booked_map = {}
         for occ in db.execute(
             """
@@ -1147,10 +1076,6 @@ def get_public_tours():
         ).fetchall():
             booked_map[(occ["schedule_id"], occ["starts_at"])] = occ["people"]
 
-        # Remaining places per calendar date = best (max) across that date's
-        # departures. The homepage availability filter evaluates this map against
-        # the selected date range, so it only becomes meaningful once a date range
-        # narrows the window (otherwise some far-off date is always free).
         availability_by_date = {}
         for schedule, dt in departures:
             booked = booked_map.get((schedule["id"], dt.isoformat()), 0)
@@ -1204,13 +1129,10 @@ LANGUAGE_CODES = {
 
 
 def flag_url(language):
-    """URL of the circular flag image for a language."""
     return f"/static/img/flags/{LANGUAGE_CODES.get(language, 'xx')}.svg"
 
 
 def get_tour_detail(slug):
-    """Return the full, DB-driven detail for a single tour, or None if the slug
-    does not exist (the caller turns that into a 404)."""
     db = get_db()
     row = fetch_tour_by_slug(slug)
     if row is None:
@@ -1232,12 +1154,6 @@ def get_tour_detail(slug):
         ).fetchall()
     ]
 
-    # Calendar availability: every upcoming departure within a wide window,
-    # grouped by date. Dates come from the weekly schedule (lazy model); a date
-    # is identified to the booking endpoint by (schedule_id, date) rather than a
-    # pre-existing occurrence row. We pre-fetch the people already booked on this
-    # tour's *existing* occurrences in one query, so remaining capacity is exact
-    # without a query per date.
     now = datetime.now()
     booked_map = {}
     for occ in db.execute(
@@ -1358,7 +1274,6 @@ def get_tour_detail(slug):
 
 
 def participant_dashboard_data(participant_id):
-    """Return dashboard data for the participant identified by participants.id."""
     db = get_db()
     user = db.execute("SELECT * FROM participants WHERE id = ?", (participant_id,)).fetchone()
     reservations = db.execute(
@@ -1402,7 +1317,6 @@ def participant_dashboard_data(participant_id):
 
 
 def reservation_count_for_occurrence(occurrence_id):
-    """Total number of people (primary participants + guests) for an occurrence."""
     row = get_db().execute(
         """
         SELECT
@@ -1422,7 +1336,6 @@ def reservation_count_for_occurrence(occurrence_id):
 
 
 def occurrence_attendees(occurrence_id):
-    """List of {participant, email, guests, total_spots} for an occurrence."""
     db = get_db()
     res_rows = db.execute(
         """
@@ -1450,7 +1363,6 @@ def occurrence_attendees(occurrence_id):
 
 
 def guide_dashboard_data(guide_id):
-    """Return dashboard data for the guide identified by guides.id."""
     db = get_db()
     guide = db.execute("SELECT * FROM guides WHERE id = ?", (guide_id,)).fetchone()
     if guide is None:
@@ -1561,9 +1473,6 @@ def guide_dashboard_data(guide_id):
             }
         )
 
-    # Report-based aggregates (all real, derived from filed reports):
-    #   tours_reported  = number of tours the guide reported (that actually ran)
-    #   total_attendees = sum of actual participants across those reports
     report_stats = db.execute(
         """
         SELECT COUNT(*) AS reported, COALESCE(SUM(actual_participants), 0) AS attendees
@@ -1575,7 +1484,6 @@ def guide_dashboard_data(guide_id):
     reports = report_stats["reported"]
     total_attendees = report_stats["attendees"]
 
-    # Total scheduled departures the guide has created (all dated occurrences).
     total_scheduled = db.execute(
         """
         SELECT COUNT(o.id)
@@ -1591,10 +1499,7 @@ def guide_dashboard_data(guide_id):
     guide_langs = guide_languages_list(guide_id)
     specialties = guide_specialties_list(guide_id)
 
-    # -----------------------------------------------------------------------
-    # Tours History / Pending reports / Past reports are driven by the
-    # "finished" flag, which the guide sets by clicking "Mark as done".
-    # -----------------------------------------------------------------------
+
     pending_reports = []
     past_reports = []
     tours_history = []
@@ -1620,7 +1525,6 @@ def guide_dashboard_data(guide_id):
             (occ["occurrence_id"],),
         ).fetchone()
 
-        # Tours History: every finished tour, with who was present.
         tours_history.append({
             "occurrence_id": occ["occurrence_id"],
             "title": occ["title"],
@@ -1632,7 +1536,6 @@ def guide_dashboard_data(guide_id):
             "actual": report_row["actual_participants"] if report_row else None,
         })
 
-        # Pending report: finished tour with reservations and no report yet.
         if report_row is None:
             if expected >= 1:
                 pending_reports.append({
@@ -1659,8 +1562,7 @@ def guide_dashboard_data(guide_id):
     booked_departures = 0
     for tour in tour_items:
         for schedule in tour["schedules"]:
-            # Upcoming Schedules = future, not-yet-done departures that have at
-            # least one participant booked. Past departures do not count.
+
             if schedule["state"] == "upcoming" and not schedule["finished"] and schedule["expected"] > 0:
                 upcoming_schedules += 1
             if schedule["expected"] > 0:
@@ -1674,8 +1576,6 @@ def guide_dashboard_data(guide_id):
                 "language": sch["language"],
             })
 
-    # Average group size = total attendees that actually showed up, divided by
-    # the number of reported (completed) tours.
     avg_group_size = round(total_attendees / reports, 1) if reports else 0
 
     return {
@@ -1712,15 +1612,13 @@ def admin_dashboard_data():
     tour_count = db.execute("SELECT COUNT(*) FROM tours").fetchone()[0]
     reservation_count = db.execute("SELECT COUNT(*) FROM reservations").fetchone()[0]
     report_count = db.execute("SELECT COUNT(*) FROM guide_reports").fetchone()[0]
-    # Total walkers = participants (1 per active reservation) + their guests.
     people_count = (
         db.execute("SELECT COUNT(*) FROM reservations WHERE status = 'active'").fetchone()[0]
         + db.execute(
             "SELECT COUNT(*) FROM reservation_guests g JOIN reservations r ON r.id = g.reservation_id WHERE r.status = 'active'"
         ).fetchone()[0]
     )
-    # Reservations per language (counts reservation records, so they sum to the
-    # total reservation count shown next to the breakdown).
+
     language_rows = db.execute(
         """
         SELECT s.language, COUNT(DISTINCT r.id) AS count
@@ -1851,9 +1749,7 @@ def admin_dashboard_data():
 
 
 def participant_has_active_tour_booking(participant_id, tour_id):
-    """True if the participant already has an active reservation for an upcoming,
-    not-yet-finished departure of this tour. They may book it again only once that
-    booked date has taken place."""
+
     return get_db().execute(
         """
         SELECT COUNT(*)
@@ -1900,10 +1796,7 @@ def create_reservation(participant_id, schedule_id, date_str, guest_names):
     if requested < 1 or requested > 4:
         raise ValueError("A reservation can include between 1 and 4 people.")
 
-    # Rule 1 — conflicts with the participant's own upcoming schedule:
-    #   (a) the SAME tour cannot be booked again until the booked date has taken
-    #       place (one active upcoming booking per tour);
-    #   (b) two different tours whose time windows OVERLAP cannot both be booked.
+
     new_start = starts_at
     new_end = starts_at + timedelta(minutes=schedule["duration_minutes"])
     existing = db.execute(
@@ -1945,7 +1838,6 @@ def create_reservation(participant_id, schedule_id, date_str, guest_names):
             f"{max_guests} extra guest{'s' if max_guests != 1 else ''}."
         )
 
-    # Materialise the occurrence now that the booking is valid.
     occurrence_id = get_or_create_occurrence(schedule_id, starts_at)
     cur = db.execute(
         "INSERT INTO reservations (participant_id, occurrence_id, status) VALUES (?, ?, 'active')",
@@ -1963,7 +1855,6 @@ def create_reservation(participant_id, schedule_id, date_str, guest_names):
 
 
 def cancel_reservation(reservation_id, participant_id):
-    """Cancel a reservation, but only if it belongs to ``participant_id``."""
     db = get_db()
     row = db.execute(
         """
@@ -2000,14 +1891,7 @@ _DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 
 def validate_schedule_rules(guide_id, exclude_tour_id, parsed_schedules, duration_minutes):
-    """Enforce the weekly-schedule rules for a guide (back-end mirror of the form
-    validation):
-      * within the tour — no two schedules on the same day in the same language,
-        and no two schedules whose time windows overlap;
-      * across the guide's OTHER tours — no schedule whose time window overlaps an
-        already-scheduled one.
-    "Overlap" compares full ``[start, start + duration)`` windows (same weekday),
-    not just identical start times. Raises ValueError on the first conflict."""
+
     def to_min(value):
         hours, minutes = map(int, value.split(":"))
         return hours * 60 + minutes
@@ -2050,7 +1934,6 @@ def validate_schedule_rules(guide_id, exclude_tour_id, parsed_schedules, duratio
 
 def create_guide_tour(guide_id, title, description, meeting_point, duration_minutes,
                       max_participants, themes, stops, accessibility, schedules, photo_files):
-    """Create a new tour for the guide (guides.id). Returns the new slug."""
     import re
     import uuid as _uuid
 
@@ -2100,8 +1983,7 @@ def create_guide_tour(guide_id, title, description, meeting_point, duration_minu
             raise ValueError(f"You can only offer tours in languages you speak ({language} is not one of them).")
         parsed_schedules.append({"weekday": weekday, "start_time": sch["start_time"], "language": language})
 
-    # Same-day/same-language and time-overlap rules (within this tour and against
-    # the guide's other tours).
+
     validate_schedule_rules(guide_id, None, parsed_schedules, duration_minutes)
 
     base_slug = re.sub(r"[^a-z0-9]+", "-", title.strip().lower()).strip("-")
@@ -2158,8 +2040,7 @@ def create_guide_tour(guide_id, title, description, meeting_point, duration_minu
         )
 
     db.commit()
-    # Bookable dates are derived from the weekly schedule on the fly, so the new
-    # tour is immediately bookable without pre-generating any occurrence rows.
+
     return slug
 
 
@@ -2180,8 +2061,7 @@ def tour_has_reservations(tour_id):
 def update_guide_tour(guide_id, slug, title, description, meeting_point, duration_minutes,
                       max_participants, themes, stops, accessibility, schedules, photo_files,
                       keep_photo_ids=None):
-    """Update an existing tour owned by the guide. Essential fields are locked
-    once a reservation exists for any date of the tour."""
+
     import uuid as _uuid
 
     db = get_db()
@@ -2251,8 +2131,6 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
                 raise ValueError(f"You can only offer tours in languages you speak ({language} is not one of them).")
             parsed_schedules.append({"weekday": weekday, "start_time": sch["start_time"], "language": language})
 
-        # Same-day/same-language and time-overlap rules — excluding this tour's own
-        # schedules from the cross-tour comparison.
         validate_schedule_rules(guide_id, tour["id"], parsed_schedules, duration_minutes)
 
         db.execute(
@@ -2270,17 +2148,13 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
                 (tour["id"], sch["weekday"], sch["start_time"], sch["language"], duration_minutes, max_participants),
             )
         db.commit()
-        # No occurrences to regenerate — dates derive from the schedule lazily.
 
     ALLOWED_IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".gif")
     valid_photos = [
         f for f in (photo_files or [])
         if f and f.filename and Path(f.filename).suffix.lower() in ALLOWED_IMG_EXT
     ]
-    # Photo editing: the form sends keep_photo_ids[] for every existing photo the
-    # guide chose to keep, plus any new uploads. If neither is present the photo
-    # set is left untouched. Otherwise the final set (kept + new) must be exactly
-    # 5, so the "5 promotional photos" rule always holds.
+
     if keep_photo_ids is not None or valid_photos:
         existing = db.execute(
             "SELECT id, image_path FROM tour_photos WHERE tour_id = ? ORDER BY is_cover DESC, id",
@@ -2303,9 +2177,7 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
         static_tours = Path(current_app.root_path) / "static" / "img" / "tours"
         static_tours.mkdir(parents=True, exist_ok=True)
 
-        # Remove the de-selected photos. Only delete files the app uploaded itself
-        # (named "tour_<uuid>") — never the committed seed images, which are named
-        # "tourN_M" (e.g. tour1_1.jpg) and so never start with "tour_".
+        # Removes the de-selected photos. 
         for photo in existing:
             if photo["id"] in keep_set:
                 continue
@@ -2317,7 +2189,6 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
                 except OSError:
                     pass
 
-        # Add the new uploads.
         for photo_file in valid_photos:
             ext = Path(photo_file.filename).suffix.lower()
             unique_name = f"tour_{_uuid.uuid4().hex}{ext}"
@@ -2327,7 +2198,6 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
                 (tour["id"], f"img/tours/{unique_name}"),
             )
 
-        # Exactly one cover photo (the first remaining one).
         db.execute("UPDATE tour_photos SET is_cover = 0 WHERE tour_id = ?", (tour["id"],))
         first = db.execute(
             "SELECT id FROM tour_photos WHERE tour_id = ? ORDER BY id LIMIT 1", (tour["id"],)
@@ -2340,8 +2210,6 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
 
 
 def mark_occurrence_done(guide_id, occurrence_id):
-    """Mark a scheduled tour occurrence as done. It moves to Tours History and,
-    if it had reservations, a pending report is created for it."""
     db = get_db()
     occ = db.execute(
         """
@@ -2366,8 +2234,6 @@ def mark_occurrence_done(guide_id, occurrence_id):
 
 
 def create_guide_report(guide_id, occurrence_id, actual_participants, evidence_photo_path):
-    """File a post-tour report for a finished occurrence owned by the guide.
-    A photo is mandatory when at least one participant attended."""
     db = get_db()
     occurrence = db.execute(
         """

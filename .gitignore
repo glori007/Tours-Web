@@ -6,3 +6,4 @@ uploads/*
 !uploads/.gitkeep
 !uploads/reports/
 !uploads/tours/
+.DS_Store

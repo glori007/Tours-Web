@@ -36,12 +36,9 @@ def create_app():
     # A secret key is mandatory for sessions and Flask-Login
     app.config["SECRET_KEY"] = "walk-prague-secret-key-change-in-production"
 
-    # Initialise SQLite backend (schema + seed data)
     init_backend(app)
 
-    # -----------------------------------------------------------------------
-    # Flask-Login setup
-    # -----------------------------------------------------------------------
+
     login_manager = LoginManager(app)
     login_manager.login_view = "signin"          # redirect here when @login_required fails
     login_manager.login_message = "Please sign in to access that page."
@@ -51,9 +48,6 @@ def create_app():
     def load_user(user_id):
         return get_user_by_id(user_id)
 
-    # -----------------------------------------------------------------------
-    # Public routes
-    # -----------------------------------------------------------------------
 
     @app.route("/")
     def index():
@@ -79,14 +73,12 @@ def create_app():
             tours=get_public_tours(),
         )
 
-    # -----------------------------------------------------------------------
+
     # Authentication routes
-    # -----------------------------------------------------------------------
 
     @app.route("/auth")
     @app.route("/signin", methods=["GET", "POST"])
     def signin():
-        # Already logged in → send to the right dashboard
         if current_user.is_authenticated:
             return _redirect_by_role(current_user.role)
 
@@ -115,9 +107,7 @@ def create_app():
         if error:
             flash(error, "error")
             return render_template("signin.html", form_email=email, form_role=role), 400
-
         login_user(user, remember=True)
-        # Respect Flask-Login's ?next= redirect after @login_required
         next_url = request.args.get("next")
         if next_url and next_url.startswith("/"):
             return redirect(next_url)
@@ -138,16 +128,13 @@ def create_app():
         email         = request.form.get("email", "").strip()
         password      = request.form.get("password", "")
         confirm_pw    = request.form.get("confirm_password", "")
-        # Languages sent as comma-separated hidden field by JS
         raw_languages = request.form.get("guide_languages", "")
         languages     = [lang.strip() for lang in raw_languages.split(",") if lang.strip()] if raw_languages else []
 
         profile_photo_file = request.files.get("profile_photo")
-        # Specialties sent as comma-separated hidden field by JS (multi-select, up to 4)
         raw_specialties = request.form.get("specialties", "")
         specialties = [s.strip() for s in raw_specialties.split(",") if s.strip()] if raw_specialties else []
 
-        # Front-end-replicable back-end checks
         error = None
         if password != confirm_pw:
             error = "Passwords do not match."
@@ -177,7 +164,6 @@ def create_app():
                 form_role=role,
             ), 400
 
-        # Log the new user in immediately
         login_user(user, remember=True)
         flash(f"Welcome to Walk Prague, {user.first_name}!", "success")
         return _redirect_by_role(user.role)
@@ -188,9 +174,8 @@ def create_app():
         logout_user()
         return redirect(url_for("index"))
 
-    # -----------------------------------------------------------------------
+
     # Dashboard / protected routes — all require login + correct role
-    # -----------------------------------------------------------------------
 
     @app.route("/admin-access", methods=["GET", "POST"])
     def admin_access():
@@ -248,10 +233,8 @@ def create_app():
             return _redirect_by_role(current_user.role)
         return render_template("participant_dashboard.html", participant=participant_dashboard_data(current_user.id))
 
-    # -----------------------------------------------------------------------
-    # Tour routes
-    # -----------------------------------------------------------------------
 
+    # Tour routes
     @app.route("/tours/<slug>")
     def tour_detail(slug):
         tour = get_tour_detail(slug)
@@ -259,11 +242,8 @@ def create_app():
             abort(404)
         admin_view = request.args.get("mode") == "admin"
         participant_view = request.args.get("mode") == "participant"
-        # Guides and admins cannot make reservations, so they never see a
-        # bookable panel (the backend also rejects their booking POSTs).
         staff_view = current_user.is_authenticated and current_user.role in ("guide", "admin")
-        # One active upcoming booking per tour: if the participant already holds
-        # one, the page shows "Booked" until that date has taken place.
+      
         already_booked = (
             current_user.is_authenticated
             and current_user.role == "participant"
@@ -275,14 +255,11 @@ def create_app():
             already_booked=already_booked,
         )
 
-    # -----------------------------------------------------------------------
     # Reservation API routes
-    # -----------------------------------------------------------------------
 
     @app.post("/reservations")
     @login_required
     def reservation_create():
-        # Only participants may reserve (a guide cannot make reservations).
         if current_user.role != "participant":
             return jsonify({"ok": False, "error": "Only participants can make reservations."}), 403
         payload = request.get_json(silent=True) or request.form
@@ -352,7 +329,6 @@ def create_app():
     @app.post("/guide/tours")
     @login_required
     def guide_tour_create():
-        """Accept a multipart/form-data POST from the Add Tour form and persist it."""
         if current_user.role != "guide":
             return jsonify({"ok": False, "error": "Access denied."}), 403
 
@@ -397,8 +373,7 @@ def create_app():
     @app.post("/guide/tours/<slug>")
     @login_required
     def guide_tour_update(slug):
-        """Update an existing tour. Essential fields are locked once a
-        reservation exists (enforced in update_guide_tour)."""
+    
         if current_user.role != "guide":
             return jsonify({"ok": False, "error": "Access denied."}), 403
         try:
@@ -432,8 +407,7 @@ def create_app():
     @app.post("/guide/occurrences/<int:occurrence_id>/done")
     @login_required
     def guide_mark_done(occurrence_id):
-        """Mark a scheduled tour occurrence as done → moves it to Tours History
-        and opens a pending report (when it had reservations)."""
+        
         if current_user.role != "guide":
             return jsonify({"ok": False, "error": "Access denied."}), 403
         try:
@@ -445,12 +419,10 @@ def create_app():
     return app
 
 
-# ---------------------------------------------------------------------------
+
 # Helper
-# ---------------------------------------------------------------------------
 
 def _redirect_by_role(role):
-    """Redirect a user to their appropriate dashboard after login."""
     if role == "guide":
         return redirect(url_for("guide_dashboard"))
     if role == "admin":
