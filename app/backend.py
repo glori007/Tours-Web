@@ -1796,6 +1796,17 @@ def create_reservation(participant_id, schedule_id, date_str, guest_names):
     if requested < 1 or requested > 4:
         raise ValueError("A reservation can include between 1 and 4 people.")
 
+    # every additional guest must have both a first and last name (validated
+    # before anything is written, so a bad name never creates a half reservation)
+    guest_people = []
+    for guest in guest_names:
+        parts = str(guest).strip().split(" ", 1)
+        first = parts[0].strip() if parts else ""
+        last = parts[1].strip() if len(parts) > 1 else ""
+        if not first or not last:
+            raise ValueError("Each additional guest needs both a first and last name.")
+        guest_people.append((first, last))
+
 
     new_start = starts_at
     new_end = starts_at + timedelta(minutes=schedule["duration_minutes"])
@@ -1844,11 +1855,10 @@ def create_reservation(participant_id, schedule_id, date_str, guest_names):
         (participant_id, occurrence_id),
     )
     reservation_id = cur.lastrowid
-    for guest in guest_names:
-        parts = guest.strip().split(" ", 1)
+    for first, last in guest_people:
         db.execute(
             "INSERT INTO reservation_guests (reservation_id, first_name, last_name) VALUES (?, ?, ?)",
-            (reservation_id, parts[0], parts[1] if len(parts) > 1 else ""),
+            (reservation_id, first, last),
         )
     db.commit()
     return reservation_id
@@ -1944,6 +1954,10 @@ def create_guide_tour(guide_id, title, description, meeting_point, duration_minu
 
     if not title or not title.strip():
         raise ValueError("Tour title is required.")
+    if not meeting_point or not meeting_point.strip():
+        raise ValueError("Meeting point is required.")
+    if not description or not description.strip():
+        raise ValueError("Tour description is required.")
     if duration_minutes < 30:
         raise ValueError("Duration must be at least 30 minutes.")
     if max_participants < 1:
@@ -2075,6 +2089,10 @@ def update_guide_tour(guide_id, slug, title, description, meeting_point, duratio
 
     if not title or not title.strip():
         raise ValueError("Tour title is required.")
+    if not meeting_point or not meeting_point.strip():
+        raise ValueError("Meeting point is required.")
+    if not description or not description.strip():
+        raise ValueError("Tour description is required.")
     if not themes:
         raise ValueError("Select at least one theme.")
     clean_stops = _clean_stops(stops)

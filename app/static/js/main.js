@@ -678,9 +678,13 @@ document.addEventListener("DOMContentLoaded", () => {
   guestEnter?.addEventListener("click", () => {
     const firstName = guestFirst?.value.trim() || "";
     const lastName = guestLast?.value.trim() || "";
-    const guestName = `${firstName} ${lastName}`.trim();
     const maxAdditionalGuests = Math.min(3, Math.max(0, currentAvailableLeft - 1));
-    if (!guestName || guests.length >= maxAdditionalGuests) {
+    // both names are required for an additional guest
+    if (!firstName || !lastName) {
+      setBookingMessage("Please enter both a first and last name for the additional guest.", "error");
+      return;
+    }
+    if (guests.length >= maxAdditionalGuests) {
       setBookingMessage(
         currentAvailableLeft > 0
           ? `Only ${currentAvailableLeft} total place${currentAvailableLeft === 1 ? "" : "s"} left for this departure.`
@@ -689,7 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       return;
     }
-    guests.push(guestName);
+    guests.push(`${firstName} ${lastName}`);
     clearGuestFields();
     renderGuests();
     updateBookingCapacity();
